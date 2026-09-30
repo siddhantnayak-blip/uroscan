@@ -1,82 +1,58 @@
 # UroScan: Smart Urine Strip Reader with a Healthcare Database
 
-DBMS mini-project by **Siddhant Nayak (16014225060)** and **Anshul Parida (16014225063)**, K J Somaiya.
+DBMS mini-project (S.Y. B.Tech) by **Siddhant Nayak (16014225060)** and **Anshul Parida (16014225063)**, K J Somaiya.
 
-A web app that reads a 10-pad urine test strip from a phone photo, matches every pad's colour to the
-reference chart, stores the result in a normalised MySQL database and shows trends on a dashboard.
+A patient uploads a photo of a 10-pad urine test strip. The app reads the colour of each pad, matches it to the
+colour chart with **KNN**, saves the report in **MySQL**, and shows a simple report, an AI explanation and a
+trend graph. A doctor can pick a patient, open their reports and add notes.
 
 ## Features
-- **Accounts:** sign-up, login, "remember me", forgot/reset password, change password.
-  Roles: patient, lab technician, clinician and admin. Passwords are hashed (scrypt).
-  The app locks an email out after 5 failed logins in 15 minutes and uses CSRF tokens on every form.
-- **Scan:** camera capture with a guide box, photo upload or drag-and-drop, a 60-second reading timer, and 6 sample strips.
-- **Computer vision** (`vision.py`, OpenCV):
-  1. Flat-field white balance: a max-filter estimates the local white, which removes shadows, colour cast and vignette.
-  2. Pad detection: finds colour blobs, fits a line through them (RANSAC), straightens the strip and fits the 10-pad grid.
-  3. Glare check and blur check.
-- **AI colour matching:** each pad is converted to CIELAB and matched with KNN (k=2) using the CIEDE2000 distance.
-  The output is the level, an approximate value interpolated between the two nearest levels, and a confidence score.
-- **Dashboard:**
-  - health score and one tile per test with a trend arrow
-  - trend chart with the normal range shaded
-  - normal vs flagged per scan, a radar chart of latest vs average, and flags by test
-  - alerts, including "abnormal 3 scans in a row", and a forecast of when a rising value may leave the normal range
-- **AI (Gemini):** a plain-English summary of every report and an "Ask UroScan" chat that answers from the patient's own data.
-  Only test values are sent, never names. There's a rule-based fallback if no key is set.
-- **Clinician:** patients sorted by risk, full dashboard per patient, notes and "reviewed" status.
-- **Admin:** stats, users (change role, enable/disable), DB feature status, audit log and the reference colour chart.
+- **Login and sign-up** for two roles: patient and doctor. Passwords are hashed, the app locks an email after 5 wrong tries for 15 minutes, and there's a forgot-password link.
+- **Scan:** take or upload a photo, or try one of the 6 sample strips.
+- **Report:** a table of the 10 tests showing the result, the normal range and Normal/Trace/High, plus the strip photo with the pads marked.
+- **AI summary** of every report and an **"Ask UroScan" chat**, both using the Google Gemini API. If there's no key, the app uses simple built-in rules instead.
+- **Graph:** pick a test to see how it changed across your scans.
+- **Doctor:** a patient list, then a patient's reports, then one report where the doctor can add a note.
 
-## DBMS concepts used (see `schema.sql`)
+## How the strip is read (`vision.py`)
+1. Find the coloured squares in the photo using OpenCV contours.
+2. Fit a straight line through them with `np.polyfit`, then work out the positions of all 10 pads.
+3. Take the average colour of the centre of each pad, corrected against the white paper around it.
+4. **KNN:** compare that colour with every level on the chart using Euclidean distance in LAB colour space. The closest level is the result (e.g. "250 mg/dL"). If the colour lies between two neighbouring levels, the value is estimated in between (e.g. "about 180 mg/dL").
+
+On 60 simulated strip photos, it found every strip and picked the exact chart level for about 93% of pads.
+
+## Database (`schema.sql`)
 | Concept | Where |
 |---|---|
-| EER specialisation | `users` → `patient`, `clinician`, `lab_technician` |
-| Weak entity, composite primary key | `diagnostic_result (report_id, analyte_id)` |
-| Constraints | PK, FK (CASCADE / SET NULL), UNIQUE, CHECK |
-| Normalisation to BCNF | analyte facts stored once in `analyte`; colours in `reference_color` |
-| Triggers | `trg_result_status` (sets Normal/Trace/High/Low), `trg_result_alert` (alerts and abnormal count), `trg_report_audit` |
-| Views | `v_report_summary`, `v_latest_results` |
-| Stored procedure | `get_patient_trend(patient, analyte)` |
-| Indexes | `idx_sample_patient_time`, `idx_login_email_time`, `idx_alert_patient` |
-| Transactions | `save_scan()` in `app.py`: START TRANSACTION, then SAVEPOINT, then COMMIT, or ROLLBACK on any error |
-| GRANT / REVOKE | `docs/db_roles.sql` |
+| Tables | `users`, `analyte`, `reference_color`, `test_report`, `test_result`, `doctor_note`, `login_attempt`, `password_reset` |
+| Weak entity, composite key | `test_result (report_id, analyte_id)` |
+| Constraints | PRIMARY KEY, FOREIGN KEY (ON DELETE CASCADE), UNIQUE, CHECK |
+| Normalisation | 3NF/BCNF: test names and normal ranges are stored once in `analyte` |
+| Triggers | `trg_set_status` (Normal/Trace/High/Low), `trg_count_abnormal` |
+| View | `v_patient_summary` (the doctor's patient list) |
+| Stored procedure | `get_test_history(patient, test)` (the graph) |
+| Index | `idx_report_patient` |
+| Transaction | `save_scan()` in `app.py`: the report and its 10 results are saved together, or rolled back |
+| Demo queries | `docs/db_roles.sql` (JOIN, GROUP BY, EXPLAIN, ROLLBACK, GRANT/REVOKE) |
 
-If the MySQL server doesn't allow triggers, the app runs the same logic in Python inside the same transaction.
-The admin page shows which features are active.
-
-## Environment variables
-| Name | Example |
+## Files
+| File | What it does |
 |---|---|
-| `DB_HOST` | `uroscan-db-uroscan.a.aivencloud.com` |
-| `DB_PORT` | `28874` |
-| `DB_USER` | `avnadmin` |
-| `DB_PASSWORD` | *(from Aiven)* |
-| `DB_NAME` | `defaultdb` |
-| `SECRET_KEY` | any long random text |
-| `ADMIN_EMAIL` | the email that becomes admin when it signs up |
-| `GEMINI_API_KEY` | *(optional)* Google AI Studio key |
-| `COOKIE_SECURE` | `1` on HTTPS hosting |
-| `PYTHON_VERSION` | `3.12.7` (Render) |
+| `app.py` | Flask routes (pages) and the save transaction |
+| `db.py` | MySQL connection; creates the tables at start-up |
+| `vision.py` | Reads the strip (KNN colour matching) |
+| `reference.py` | The colour chart and normal ranges |
+| `ai.py` | Gemini AI summary and chat |
+| `templates/` | HTML pages |
+| `static/` | CSS, JavaScript (graph and chat) and sample strip photos |
+| `tools/` | Makes simulated strip photos and measures accuracy |
 
-## Deploy on Render
-- **Build command:** `pip install -r requirements.txt`
-- **Start command:** `gunicorn -w 2 --timeout 90 app:app`
-- **Health check path:** `/health`, which is also used by UptimeRobot to keep the site awake
+## Running it
+Hosted on **Render** (the Flask app) with **Aiven** (free MySQL).
+Settings are passed in as environment variables: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`,
+`SECRET_KEY`, `GEMINI_API_KEY`, `COOKIE_SECURE=1`.
 
-## Run locally
-```
-pip install -r requirements.txt
-set DB_HOST=... (and the other variables)
-python app.py        # opens on http://localhost:5000
-```
+To run it locally: `pip install -r requirements.txt`, set the same variables, then `python app.py`.
 
-## Testing the colour reader
-```
-python tools/generate_strips.py --n 200 --out dataset   # simulated strip photos with known answers
-python tools/evaluate.py dataset                          # prints accuracy per test
-```
-On 60 simulated photos (random lighting, glare, shadow, blur and tilt), the reader found the strip every time.
-It picked the exact chart level for **92.7%** of pads and was within one level for **99.8%**.
-About 20% of the simulated pads are deliberately halfway between two levels.
-
-> UroScan is a screening aid, not a diagnosis. Reference colours are approximate and should be calibrated
-> against the chart printed on the actual strip bottle.
+> UroScan is a screening aid, not a diagnosis.

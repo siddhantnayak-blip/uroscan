@@ -1,4 +1,4 @@
-"""MySQL connection helpers + database initialisation."""
+"""MySQL connection helpers + creating the tables when the app starts."""
 import os
 import ssl
 import logging
@@ -9,7 +9,12 @@ from flask import g
 from reference import CHART, ANALYTE_INFO
 
 log = logging.getLogger("uroscan.db")
-DB_FEATURES = {"triggers": False, "procedure": False, "views": False}
+DB_FEATURES = {"triggers": False}
+
+# tables from the first (more complex) version of UroScan, removed once if found
+OLD_TABLES = ["alert", "clinician_note", "diagnostic_result", "test_strip", "audit_log", "test_report",
+              "urine_sample", "lab_technician", "clinician", "patient", "laboratory",
+              "password_reset", "login_attempt", "reference_color", "analyte", "users"]
 
 
 def _connect():
@@ -24,14 +29,10 @@ def _connect():
         charset="utf8mb4",
         connect_timeout=15,
     )
-    if os.environ.get("DB_SSL", "1") == "1":
+    if os.environ.get("DB_SSL", "1") == "1":        # Aiven requires an encrypted connection
         ctx = ssl.create_default_context()
-        ca = os.environ.get("DB_CA_CERT")          # optional: paste Aiven CA certificate
-        if ca:
-            ctx.load_verify_locations(cadata=ca)
-        else:                                       # encrypted, but without CA verification
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         kwargs["ssl"] = ctx
     return pymysql.connect(**kwargs)
 
@@ -54,6 +55,7 @@ def close_db(_=None):
 
 
 def query(sql, args=None, one=False):
+    """Run a SELECT and return rows as dictionaries."""
     cur = get_db().cursor()
     cur.execute(sql, args)
     rows = cur.fetchall()
@@ -62,6 +64,7 @@ def query(sql, args=None, one=False):
 
 
 def execute(sql, args=None, commit=True):
+    """Run INSERT / UPDATE / DELETE."""
     db = get_db()
     cur = db.cursor()
     cur.execute(sql, args)
@@ -72,26 +75,35 @@ def execute(sql, args=None, commit=True):
     return last
 
 
-def audit(user_id, action, details=""):
-    try:
-        execute("INSERT INTO audit_log (user_id, action, details) VALUES (%s,%s,%s)",
-                (user_id, action, details[:255]))
-    except Exception as e:  # never break a request because of logging
-        log.warning("audit failed: %s", e)
-
-
 def init_db():
-    """Create tables, views, triggers, procedure (idempotent) and seed analytes."""
+    """Create tables, view, triggers and procedure from schema.sql, then fill the colour chart."""
     conn = _connect()
     cur = conn.cursor()
-    cur.execute("SELECT GET_LOCK('uroscan_init', 60)")   # only one worker builds the schema at a time
-    try:  # needed to create triggers when binary logging is on (works only if the user may set it)
+    cur.execute("SELECT GET_LOCK('uroscan_init', 60)")
+    try:
         cur.execute("SET GLOBAL log_bin_trust_function_creators = 1")
     except Exception:
         pass
+
+    # one-time clean-up of the old version's tables (they had a different design)
+    cur.execute("SELECT COUNT(*) AS n FROM information_schema.TABLES "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'urine_sample'")
+    if cur.fetchone()["n"]:
+        log.warning("Old UroScan tables found - removing them and creating the new design")
+        cur.execute("SET FOREIGN_KEY_CHECKS = 0")
+        for v in ("v_report_summary", "v_latest_results"):
+            cur.execute(f"DROP VIEW IF EXISTS {v}")
+        for t in OLD_TABLES:
+            cur.execute(f"DROP TABLE IF EXISTS {t}")
+        for t in ("trg_result_status", "trg_result_alert", "trg_report_audit"):
+            cur.execute(f"DROP TRIGGER IF EXISTS {t}")
+        cur.execute("DROP PROCEDURE IF EXISTS get_patient_trend")
+        cur.execute("SET FOREIGN_KEY_CHECKS = 1")
+        conn.commit()
+
     path = os.path.join(os.path.dirname(__file__), "schema.sql")
     with open(path, encoding="utf-8") as fh:
-        parts = [p.strip() for p in fh.read().split("-- @@")]
+        parts = fh.read().split("-- @@")
     for stmt in parts:
         body = "\n".join(l for l in stmt.splitlines() if not l.strip().startswith("--")).strip()
         if not body:
@@ -99,29 +111,15 @@ def init_db():
         try:
             cur.execute(body)
             conn.commit()
-            if "CREATE TRIGGER" in body:
-                DB_FEATURES["triggers"] = True
-            if "CREATE PROCEDURE" in body:
-                DB_FEATURES["procedure"] = True
-            if "CREATE OR REPLACE VIEW" in body:
-                DB_FEATURES["views"] = True
         except pymysql.err.OperationalError as e:
-            code = e.args[0]
-            if code == 1061:            # duplicate index -> already created
-                continue
-            log.warning("schema statement skipped (%s): %s", code, body[:60])
+            if e.args[0] != 1061:               # 1061 = index already exists, that's fine
+                log.warning("schema statement skipped (%s): %s", e.args[0], body[:60])
             conn.rollback()
-        except Exception as e:
-            log.warning("schema statement failed: %s -> %s", body[:60], e)
-            conn.rollback()
-    # detect triggers/procedure that already existed from a previous start
-    cur.execute("SELECT COUNT(*) AS n FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()")
-    DB_FEATURES["triggers"] = cur.fetchone()["n"] >= 3
-    cur.execute("SELECT COUNT(*) AS n FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() "
-                "AND ROUTINE_NAME='get_patient_trend'")
-    DB_FEATURES["procedure"] = cur.fetchone()["n"] == 1
 
-    # seed analytes + reference colours
+    cur.execute("SELECT COUNT(*) AS n FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()")
+    DB_FEATURES["triggers"] = cur.fetchone()["n"] >= 2
+
+    # fill the analyte table and the colour chart the first time
     cur.execute("SELECT COUNT(*) AS n FROM analyte")
     if cur.fetchone()["n"] == 0:
         for order, (name, levels) in enumerate(CHART.items(), start=1):
@@ -132,10 +130,8 @@ def init_db():
             for i, (label, val, (r, gg, b)) in enumerate(levels):
                 cur.execute("INSERT INTO reference_color (analyte_id, level_index, level_label, numeric_value, r, g, b) "
                             "VALUES (%s,%s,%s,%s,%s,%s,%s)", (aid, i, label, val, r, gg, b))
-        cur.execute("INSERT IGNORE INTO laboratory (name, city) VALUES ('Somaiya Health Lab', 'Mumbai')")
         conn.commit()
     cur.execute("SELECT RELEASE_LOCK('uroscan_init')")
     cur.close()
     conn.close()
-    log.info("DB ready. Features: %s", DB_FEATURES)
-    return DB_FEATURES
+    log.info("DB ready. Triggers active: %s", DB_FEATURES["triggers"])

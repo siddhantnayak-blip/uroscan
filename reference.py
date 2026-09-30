@@ -52,3 +52,8 @@ ANALYTE_INFO = {
 }
 
 PAD_ORDER = list(CHART.keys())
+
+
+# Tests whose chart levels are real numbers, so an approximate value can be shown
+# (name -> number of decimals to show). The others (+, ++, Positive) are shown as levels only.
+MEASURED = {"Glucose": 0, "Ketones": 0, "Specific Gravity": 3, "pH": 1, "Protein": 0, "Urobilinogen": 1}

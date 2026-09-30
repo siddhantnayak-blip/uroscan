@@ -100,7 +100,7 @@ def chat(question, history_rows, latest):
     if latest:
         abn = [r for r in latest if r["status"] != "Normal"]
         if "compare" in q or "trend" in q or "change" in q:
-            return ("Open the Trends chart on your dashboard and pick a test to see how it changed over time. "
+            return ("Use the graph on your dashboard and pick a test to see how it changed over time. "
                     "AI chat is offline right now, so I can only give a basic answer.")
         if abn:
             return ("In your latest scan: " + ", ".join(f"{r['analyte']} {r['level_label']}" for r in abn)
