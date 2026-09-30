@@ -1,31 +1,54 @@
 {% extends "base.html" %}
-{% block title %}My patients{% endblock %}
+{% import "_macros.html" as ui %}
+{% block title %}Patients{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>My patients</h1><p class="muted" style="margin:0">Choose a patient to see their reports and add notes.</p></div>
-  <input id="search" placeholder="🔍 Search by name or email" style="max-width:280px">
+  <div><p class="eyebrow">Clinician dashboard</p><h1>Good to see you, {{ user.full_name }}</h1>
+    <p class="muted" style="margin:4px 0 0">
+      {% if stats.to_review %}You have <b>{{ stats.to_review }} new report{{ 's' if stats.to_review != 1 }}</b> to review.{% else %}You're all caught up 🎉{% endif %}</p></div>
 </div>
+
+<div class="grid g4" style="margin-bottom:18px">
+  <div class="card stat"><div class="ic">👥</div><div><div class="num">{{ stats.patients }}</div><div class="lbl">Patients</div></div></div>
+  <div class="card stat"><div class="ic">🧾</div><div><div class="num">{{ stats.reports }}</div><div class="lbl">Reports in total</div></div></div>
+  <div class="card stat {{ 'alert' if stats.to_review }}"><div class="ic">📝</div><div><div class="num">{{ stats.to_review }}</div><div class="lbl">New reports to review</div></div></div>
+  <div class="card stat {{ 'alert' if stats.flagged }}"><div class="ic">🚩</div><div><div class="num">{{ stats.flagged }}</div><div class="lbl">Patients with flagged results</div></div></div>
+</div>
+
 <div class="card">
-  <table class="simple" id="list">
-    <thead><tr><th>Patient</th><th>Reports</th><th>Last scan</th><th></th></tr></thead>
-    {% for p in rows %}
-    <tr>
-      <td><b>{{ p.full_name }}</b><div class="small muted">{{ p.email }}</div></td>
-      <td>{{ p.total_reports }}</td>
-      <td>{{ p.last_scan|dt('%d %b %Y') if p.last_scan else '—' }}</td>
-      <td style="text-align:right"><a class="btn small" href="{{ url_for('patient_detail', pid=p.patient_id) }}">Open</a></td>
-    </tr>
-    {% else %}
-    <tr><td colspan="4" class="muted">No patients have signed up yet.</td></tr>
-    {% endfor %}
-  </table>
+  <div class="page-head" style="margin-bottom:12px">
+    <h2 style="margin:0">Patients</h2>
+    <input id="search" placeholder="🔍 Search by name or email" style="max-width:280px">
+  </div>
+  {% if rows %}
+  <div class="table-wrap"><table id="ptable">
+    <thead><tr><th>Patient</th><th class="hide-sm">Age / Gender</th><th>Reports</th><th class="hide-sm">Last scan</th><th>Status</th><th></th></tr></thead>
+    <tbody>{% for p in rows %}
+      <tr data-search="{{ (p.full_name ~ ' ' ~ p.email)|lower }}">
+        <td><div style="display:flex;align-items:center;gap:10px">
+          <span class="avatar" style="width:34px;height:34px;font-size:.8rem">{{ p.full_name[:1]|upper }}</span>
+          <div><b>{{ p.full_name }}</b> {% if (p.latest_flags or 0) > 0 %}<span class="red-dot" title="Latest scan has {{ p.latest_flags }} flagged result(s)"></span>{% endif %}
+            <div class="tiny muted">{{ p.email }}</div></div></div></td>
+        <td class="hide-sm">{{ p.age ~ ' y' if p.age is not none else '—' }} · {{ p.gender or '—' }}</td>
+        <td>{{ p.total_reports }}</td>
+        <td class="hide-sm">{{ p.last_scan|dt('%d %b %Y') if p.last_scan else '—' }}</td>
+        <td>{% if p.to_review %}<span class="badge review">{{ p.to_review }} to review</span>
+            {% elif p.total_reports %}<span class="badge Normal">Reviewed</span>
+            {% else %}<span class="muted small">No scans</span>{% endif %}</td>
+        <td style="text-align:right"><a class="btn secondary small" href="{{ url_for('patient_detail', pid=p.patient_id) }}">Open</a></td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <p class="tiny muted" style="margin:10px 0 0"><span class="red-dot"></span>&nbsp; red dot = the patient's latest scan has flagged results</p>
+  {% else %}
+  <div class="empty"><div class="big-ic">👥</div><h2>No patients yet</h2><p class="muted">Patients appear here once they sign up.</p></div>
+  {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-document.getElementById('search').oninput = e => {
-  const q = e.target.value.toLowerCase();
-  document.querySelectorAll('#list tr').forEach((tr, i) => { if (i) tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'; });
-};
+const search = document.getElementById('search');
+search.oninput = () => { const q = search.value.toLowerCase();
+  document.querySelectorAll('#ptable tbody tr').forEach(tr => tr.style.display = tr.dataset.search.includes(q) ? '' : 'none'); };
 </script>
 {% endblock %}

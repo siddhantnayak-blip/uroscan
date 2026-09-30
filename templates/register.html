@@ -1,71 +1,87 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Sign up{% endblock %}
 {% block full %}
-<div class="auth-wrap">
-  <div class="auth-side">
-    <h2>Create your UroScan account</h2>
-    <p style="opacity:.9">Choose your role:</p>
-    <ul style="opacity:.9">
-      <li><b>Patient</b>: scan your strip, see your report and graph</li>
-      <li><b>Doctor</b>: open your patients' reports and add notes</li>
-    </ul>
-  </div>
-  <div class="auth-form">
-    <div class="card">
-      <h1>Sign up</h1>
-      <p class="muted small">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
-      {% with msgs = get_flashed_messages(with_categories=true) %}
-        {% if msgs %}<div class="flashes">{% for c, m in msgs %}<div class="flash {{ c }}">{{ m }}</div>{% endfor %}</div>{% endif %}
-      {% endwith %}
-      <form method="post" id="regform" novalidate>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <label for="full_name">Full name</label>
-        <input id="full_name" name="full_name" value="{{ form.get('full_name','') }}" required autocomplete="name">
-        <label for="email">Email</label>
-        <input id="email" name="email" type="email" value="{{ form.get('email','') }}" required autocomplete="email">
-        <label for="role">I am a…</label>
-        <select id="role" name="role">
-          <option value="patient" {{ 'selected' if form.get('role')!='doctor' }}>Patient</option>
-          <option value="doctor" {{ 'selected' if form.get('role')=='doctor' }}>Doctor</option>
-        </select>
-        <label for="password">Password</label>
-        <input id="password" name="password" type="password" required autocomplete="new-password" placeholder="8+ characters, a letter and a number">
-        <div class="pw-meter"><span id="pwbar"></span></div>
-        <div class="small muted" id="pwtext">&nbsp;</div>
-        <label for="confirm">Confirm password</label>
-        <input id="confirm" name="confirm" type="password" required autocomplete="new-password">
-        <div class="small" id="match" style="min-height:1.2em"></div>
-        <button class="btn block" type="submit" style="margin-top:10px">Create account</button>
-      </form>
+<div class="auth">
+  {% include "_auth_art.html" %}
+  <section class="auth-form">
+    <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode">🌙</button>
+    <div class="auth-card">
+      <div class="mobile-logo">{{ ui.logo(url_for('index')) }}</div>
+      <div class="card">
+        <p class="eyebrow">Get started</p>
+        <h1>Create your account</h1>
+        <p class="muted small" style="margin-top:0">Already have one? <a href="{{ url_for('login') }}">Log in</a></p>
+        {{ ui.flashes() }}
+        <form method="post" id="regform" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label>I am a…</label>
+          <div class="segmented">
+            <input type="radio" name="role" id="r-patient" value="patient" {{ 'checked' if form.get('role') != 'clinician' }}>
+            <label for="r-patient">🧑 Patient</label>
+            <input type="radio" name="role" id="r-clinician" value="clinician" {{ 'checked' if form.get('role') == 'clinician' }}>
+            <label for="r-clinician">🩺 Clinician</label>
+          </div>
+          <label for="full_name">Full name</label>
+          <input id="full_name" name="full_name" value="{{ form.get('full_name','') }}" required autocomplete="name" placeholder="e.g. Riya Shah">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" value="{{ form.get('email','') }}" required autocomplete="email" placeholder="you@example.com">
+          <div class="row" id="patientFields">
+            <div><label for="dob">Date of birth</label><input id="dob" name="dob" type="date" value="{{ form.get('dob','') }}"></div>
+            <div><label for="gender">Gender</label>
+              <select id="gender" name="gender"><option value="">Select</option>
+                {% for g in ['Female','Male','Other'] %}<option {{ 'selected' if form.get('gender') == g }}>{{ g }}</option>{% endfor %}
+              </select></div>
+          </div>
+          {{ ui.pw_field('password', 'password', 'Password', 'Create a password', 'new-password') }}
+          <div class="pw-meter"><span id="pwbar"></span></div>
+          <ul class="rules" id="rules">
+            <li data-rule="len">At least 8 characters</li><li data-rule="letter">A letter</li><li data-rule="num">A number</li>
+          </ul>
+          {{ ui.pw_field('confirm', 'confirm', 'Re-enter password', 'Type the same password again', 'new-password') }}
+          <div class="hint muted" id="match">Re-enter the password exactly as above.</div>
+          <button class="btn block lg" type="submit" style="margin-top:14px">Create account</button>
+        </form>
+      </div>
     </div>
-  </div>
+  </section>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-const pw = document.getElementById('password'), cf2 = document.getElementById('confirm');
+const pw = document.getElementById('password'), cf = document.getElementById('confirm'), match = document.getElementById('match');
+// show date of birth + gender only for patients
+function roleFields() { document.getElementById('patientFields').style.display = document.getElementById('r-patient').checked ? 'flex' : 'none'; }
+document.querySelectorAll('input[name=role]').forEach(r => r.onchange = roleFields); roleFields();
+// password strength + checklist
+function rules(v) { return { len: v.length >= 8, letter: /[A-Za-z]/.test(v), num: /\d/.test(v) }; }
 pw.oninput = () => {
-  const v = pw.value; let s = 0;
-  if (v.length >= 8) s++; if (/[A-Za-z]/.test(v) && /\d/.test(v)) s++; if (/[^A-Za-z0-9]/.test(v)) s++; if (v.length >= 12) s++;
-  const cols = ['#e5e7eb','#dc2626','#f59e0b','#16a34a','#0f766e'], words = ['','Weak','Okay','Strong','Very strong'];
-  const bar = document.getElementById('pwbar'); bar.style.width = (s*25)+'%'; bar.style.background = cols[s];
-  document.getElementById('pwtext').textContent = v ? words[s] : ' '; checkMatch();
+  const r = rules(pw.value); let score = Object.values(r).filter(Boolean).length + (pw.value.length >= 12 ? 1 : 0);
+  document.querySelectorAll('#rules li').forEach(li => li.classList.toggle('ok', r[li.dataset.rule]));
+  const bar = document.getElementById('pwbar'); bar.style.width = (score * 25) + '%';
+  bar.style.background = ['#e5e7eb', '#dc2626', '#f59e0b', '#16a34a', '#0d9488'][score];
+  checkMatch();
 };
-function checkMatch(){ const m = document.getElementById('match');
-  if (!cf2.value) { m.textContent=''; return; }
-  m.textContent = cf2.value===pw.value ? '✓ Passwords match' : '✗ Passwords don\'t match';
-  m.style.color = cf2.value===pw.value ? '#15803d' : '#be123c'; }
-cf2.oninput = checkMatch;
+// "re-enter password" reminder
+function checkMatch() {
+  if (!cf.value) { match.className = 'hint muted'; match.textContent = 'Re-enter the password exactly as above.'; return; }
+  const same = cf.value === pw.value;
+  match.className = 'hint ' + (same ? 'ok' : 'bad');
+  match.textContent = same ? '✓ Passwords match' : '✗ Passwords don\'t match yet';
+}
+cf.oninput = checkMatch;
 document.getElementById('regform').onsubmit = e => {
-  const errs = [];
-  if (document.getElementById('full_name').value.trim().length < 2) errs.push('Enter your full name');
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(document.getElementById('email').value)) errs.push('Enter a valid email');
-  if (pw.value.length < 8 || !/[A-Za-z]/.test(pw.value) || !/\d/.test(pw.value)) errs.push('Password needs 8+ characters with a letter and a number');
-  if (pw.value !== cf2.value) errs.push("Passwords don't match");
-  if (errs.length) { e.preventDefault(); alertBox(errs); }
+  const errs = [], r = rules(pw.value);
+  if (document.getElementById('full_name').value.trim().length < 2) errs.push('Please enter your full name.');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(document.getElementById('email').value)) errs.push('Please enter a valid email.');
+  if (!(r.len && r.letter && r.num)) errs.push('Password needs 8+ characters with a letter and a number.');
+  if (pw.value !== cf.value) errs.push("The two passwords don't match.");
+  if (errs.length) {
+    e.preventDefault();
+    let box = document.querySelector('#regform .flashes');
+    if (!box) { box = document.createElement('div'); box.className = 'flashes'; document.getElementById('regform').prepend(box); }
+    box.innerHTML = errs.map(x => '<div class="flash error"><span>' + x + '</span></div>').join('');
+  }
 };
-function alertBox(errs){ let box = document.querySelector('.flashes.js');
-  if (!box) { box = document.createElement('div'); box.className='flashes js'; document.getElementById('regform').prepend(box); }
-  box.innerHTML = errs.map(x => '<div class="flash error">'+x+'</div>').join(''); }
 </script>
 {% endblock %}

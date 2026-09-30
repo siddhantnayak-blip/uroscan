@@ -1,17 +1,33 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Reset password{% endblock %}
-{% block content %}
-<div style="max-width:440px;margin:30px auto">
-  <div class="card">
-    <h1>Choose a new password</h1>
-    <form method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label for="password">New password</label>
-      <input id="password" name="password" type="password" required placeholder="8+ characters, a letter and a number">
-      <label for="confirm">Confirm new password</label>
-      <input id="confirm" name="confirm" type="password" required>
-      <button class="btn block" style="margin-top:14px">Update password</button>
-    </form>
-  </div>
+{% block full %}
+<div class="auth">
+  {% include "_auth_art.html" %}
+  <section class="auth-form">
+    <div class="auth-card">
+      <div class="mobile-logo">{{ ui.logo(url_for('index')) }}</div>
+      <div class="card">
+        <p class="eyebrow">Account help</p>
+        <h1>Choose a new password</h1>
+        {{ ui.flashes() }}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          {{ ui.pw_field('password', 'password', 'New password', '8+ characters, a letter and a number', 'new-password') }}
+          {{ ui.pw_field('confirm', 'confirm', 'Re-enter new password', 'Type the same password again', 'new-password') }}
+          <div class="hint muted" id="match">Re-enter the password exactly as above.</div>
+          <button class="btn block lg" style="margin-top:14px">Update password</button>
+        </form>
+      </div>
+    </div>
+  </section>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+const pw = document.getElementById('password'), cf = document.getElementById('confirm'), m = document.getElementById('match');
+function check() { if (!cf.value) return; const s = pw.value === cf.value;
+  m.className = 'hint ' + (s ? 'ok' : 'bad'); m.textContent = s ? '✓ Passwords match' : '✗ Passwords don\'t match yet'; }
+pw.oninput = check; cf.oninput = check;
+</script>
 {% endblock %}

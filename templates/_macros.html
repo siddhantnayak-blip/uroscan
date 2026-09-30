@@ -1,0 +1,78 @@
+{# Reusable pieces: logo, strip illustration, flash messages #}
+
+{% macro logo_mark(cls='mark') -%}
+<svg class="{{ cls }}" viewBox="0 0 40 40" aria-hidden="true">
+  <defs><linearGradient id="lg-{{ cls }}" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#0f766e"/></linearGradient></defs>
+  <rect width="40" height="40" rx="11" fill="url(#lg-{{ cls }})"/>
+  <g transform="rotate(-35 20 20)">
+    <rect x="15" y="4" width="10" height="32" rx="3" fill="#fff"/>
+    <rect x="16.8" y="7" width="6.4" height="5" rx="1.2" fill="#22d3ee"/>
+    <rect x="16.8" y="14" width="6.4" height="5" rx="1.2" fill="#facc15"/>
+    <rect x="16.8" y="21" width="6.4" height="5" rx="1.2" fill="#f472b6"/>
+  </g>
+</svg>
+{%- endmacro %}
+
+{% macro logo(href='/') -%}
+<a class="logo" href="{{ href }}">{{ logo_mark() }}<span>Uro<b>Scan</b></span></a>
+{%- endmacro %}
+
+{% macro strip_svg() -%}
+<svg viewBox="0 0 520 90" aria-label="Illustration of a urine test strip">
+  <rect x="4" y="18" width="512" height="54" rx="10" fill="#ffffff"/>
+  <rect x="4" y="18" width="512" height="54" rx="10" fill="none" stroke="rgba(0,0,0,.08)"/>
+  {% set colours = ['#73c8c8','#f5e6be','#ebc8b4','#7d8746','#f0be50','#d7aa3c','#bed778','#f5c8a0','#f3ece4','#af96c1'] %}
+  {% for c in colours %}
+  <rect x="{{ 18 + loop.index0 * 38 }}" y="29" width="30" height="32" rx="5" fill="{{ c }}" stroke="rgba(0,0,0,.08)"/>
+  {% endfor %}
+  <rect x="408" y="30" width="96" height="30" rx="6" fill="#f1f5f5"/>
+  <text x="456" y="50" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#0f766e" text-anchor="middle">10 PADS</text>
+</svg>
+{%- endmacro %}
+
+{% macro flashes() -%}
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}<div class="flashes">{% for c, m in msgs %}
+    <div class="flash {{ c }}"><span>{{ m }}</span><button type="button" aria-label="Close" onclick="this.parentElement.remove()">✕</button></div>
+  {% endfor %}</div>{% endif %}
+{% endwith %}
+{%- endmacro %}
+
+{% macro pw_field(id, name, label, placeholder='', autocomplete='current-password') -%}
+<label for="{{ id }}">{{ label }}</label>
+<div class="pw-wrap">
+  <input id="{{ id }}" name="{{ name }}" type="password" required autocomplete="{{ autocomplete }}" placeholder="{{ placeholder }}">
+  <button type="button" class="pw-toggle" data-for="{{ id }}" aria-label="Show password">Show</button>
+</div>
+{%- endmacro %}
+
+{# One test shown as a box: name, status, value, the colour chart with the matched colour ringed, change vs last scan #}
+{% macro analyte_card(r) -%}
+<div class="analyte {{ r.status }}">
+  <div class="top"><span class="name">{{ r.analyte }}</span><span class="badge {{ r.status }}">{{ r.status }}</span></div>
+  <div class="value">{{ r.level_label }}</div>
+  <div class="approx">{% if r.measured %}≈ {{ r.measured }}{% endif %}</div>
+  <div class="chart-strip" title="Colour chart – the ringed colour is the closest match">
+    {% for c in r.chart %}<i style="background:{{ c.hex }}" class="{{ 'sel' if loop.index0 == r.level_index }}" title="{{ c.label }}"></i>{% endfor %}
+  </div>
+  <div class="meta">
+    <span class="pad-read"><span class="dot" style="background:rgb({{ r.r }},{{ r.g }},{{ r.b }})" title="Colour read from your pad"></span>Normal: {{ r.normal }}</span>
+    {% if r.change %}
+      {% set cls = 'same' if r.change == 'same' else ('down' if r.status == 'Normal' else 'up') %}
+      <span class="change {{ cls }}" title="Previous scan: {{ r.prev }}">{% if r.change == 'same' %}= no change{% else %}{{ '↑' if r.change == 'up' else '↓' }} from {{ r.prev }}{% endif %}</span>
+    {% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro status_banner(results) -%}
+{% set flagged = results | rejectattr('status', 'equalto', 'Normal') | list %}
+{% if flagged %}
+<div class="banner bad"><span class="big">⚠️</span><div><b>{{ flagged|length }} of {{ results|length }} tests need attention</b><br>
+  <span class="small">{{ flagged | map(attribute='analyte') | join(', ') }} — please discuss with a clinician.</span></div></div>
+{% else %}
+<div class="banner ok"><span class="big">✅</span><div><b>All {{ results|length }} tests look normal</b><br>
+  <span class="small">Every pad matched a colour inside the normal range.</span></div></div>
+{% endif %}
+{%- endmacro %}

@@ -1,46 +1,72 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}{{ patient.full_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div>
-    <p class="small muted" style="margin:0"><a href="{{ url_for('patients') }}">← My patients</a></p>
-    <h1>{{ patient.full_name }}</h1>
-    <p class="muted" style="margin:0">{{ patient.email }} · {{ reports|length }} report{{ 's' if reports|length != 1 }}</p>
+  <div style="display:flex;align-items:center;gap:14px">
+    <span class="avatar" style="width:56px;height:56px;font-size:1.3rem">{{ patient.full_name[:1]|upper }}</span>
+    <div><p class="eyebrow"><a href="{{ url_for('patients') }}">← All patients</a></p>
+      <h1 style="margin:0">{{ patient.full_name }}</h1>
+      <p class="muted" style="margin:2px 0 0">{{ age ~ ' years' if age is not none else 'Age not given' }} · {{ patient.gender or 'Gender not given' }} · {{ patient.email }}</p></div>
   </div>
 </div>
 
-<div class="grid g2">
-  <div class="card">
-    <h2>Reports</h2>
-    <table class="simple">
-      <thead><tr><th>Date</th><th>Result</th><th></th></tr></thead>
-      {% for r in reports %}
-      <tr>
-        <td>{{ r.created_at|dt }}</td>
-        <td>{% if r.abnormal_count %}<span class="badge High">{{ r.abnormal_count }} flagged</span>{% else %}<span class="badge Normal">All normal</span>{% endif %}</td>
-        <td style="text-align:right"><a href="{{ url_for('report', report_id=r.report_id) }}">Open &amp; add note →</a></td>
-      </tr>
-      {% else %}
-      <tr><td colspan="3" class="muted">This patient has no reports yet.</td></tr>
-      {% endfor %}
-    </table>
-  </div>
-  {% if reports %}
-  <div class="card">
-    <div class="page-head" style="margin-bottom:6px">
-      <h2 style="margin:0">Graph</h2>
-      <select id="testSel" style="width:auto">{% for a in analytes %}<option>{{ a }}</option>{% endfor %}</select>
-    </div>
-    <div class="chart-box"><canvas id="chart"></canvas></div>
-    <p class="small muted" style="margin:6px 0 0">Green area = normal range. Click a dot to open that report.</p>
-  </div>
-  {% endif %}
+{% if not reports %}
+<div class="card empty"><div class="big-ic">🧪</div><h2>No scans yet</h2><p class="muted">This patient hasn't scanned a strip yet.</p></div>
+{% else %}
+{% set to_review = reports | selectattr('notes', 'equalto', 0) | list | length %}
+<div class="grid g4" style="margin-bottom:18px">
+  <div class="card stat"><div class="ic">🧾</div><div><div class="num">{{ reports|length }}</div><div class="lbl">Reports</div></div></div>
+  <div class="card stat {{ 'alert' if to_review }}"><div class="ic">📝</div><div><div class="num">{{ to_review }}</div><div class="lbl">To review</div></div></div>
+  <div class="card stat {{ 'alert' if reports[0].abnormal_count }}"><div class="ic">🚩</div><div><div class="num">{{ reports[0].abnormal_count }}</div><div class="lbl">Flagged in latest</div></div></div>
+  <div class="card stat"><div class="ic">📅</div><div><div class="num" style="font-size:1.15rem">{{ reports[0].created_at|dt('%d %b') }}</div><div class="lbl">Last scan</div></div></div>
 </div>
+
+<div class="card" style="margin-bottom:18px">
+  <h2>🗂️ Reports</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Date</th><th>Result</th><th>Review</th><th></th></tr></thead>
+    <tbody>{% for r in reports %}
+      <tr><td>{{ r.report_id }}</td><td>{{ r.created_at|dt }}</td>
+        <td>{% if r.abnormal_count %}<span class="badge High">{{ r.abnormal_count }} flagged</span>{% else %}<span class="badge Normal">All normal</span>{% endif %}</td>
+        <td>{% if r.notes %}<span class="small muted">✓ {{ r.notes }} note{{ 's' if r.notes != 1 }}</span>{% else %}<span class="badge review">Needs review</span>{% endif %}</td>
+        <td style="text-align:right"><a class="btn {{ 'secondary' if r.notes }} small" href="{{ url_for('report', report_id=r.report_id) }}">{{ 'View' if r.notes else 'Review' }}</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <div class="page-head" style="margin-bottom:12px"><h2 style="margin:0">Latest results</h2>
+    <a class="btn secondary small" href="{{ url_for('report', report_id=reports[0].report_id) }}">Open report →</a></div>
+  {{ ui.status_banner(latest) }}
+  <div class="analytes">{% for r in latest %}{{ ui.analyte_card(r) }}{% endfor %}</div>
+</div>
+
+<div class="grid g3" style="margin-bottom:18px">
+  <div class="card span2">
+    <div class="page-head" style="margin-bottom:8px"><h2 style="margin:0">📈 Trend</h2>
+      <select id="testSel" style="width:auto">{% for a in analytes %}<option>{{ a }}</option>{% endfor %}</select></div>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+  </div>
+  <div class="card"><h2>🍩 Latest scan</h2><div class="chart-box sm"><canvas id="donut"></canvas></div></div>
+</div>
+
+<div class="grid g2">
+  <div class="card"><h2>📊 Normal vs flagged</h2><div class="chart-box sm"><canvas id="bars"></canvas></div></div>
+  <div class="card chat-box">
+    <h2 style="margin-bottom:6px">💬 Ask AI about this patient</h2>
+    <div class="chat-log" id="chatLog"><div class="msg bot">Ask me about {{ patient.full_name.split()[0] }}'s results.</div></div>
+    <div class="chips"><button type="button" data-q="Summarise this patient's trend">Summarise trend</button>
+      <button type="button" data-q="Which tests are abnormal most often?">Most often abnormal?</button></div>
+    <form class="chat-form" id="chatForm"><input id="chatInput" placeholder="Type a question…" autocomplete="off"><button class="btn">Send</button></form>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 {% if reports %}
-<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
 <script>const PID = {{ patient.user_id }}, CSRF = "{{ csrf_token }}";</script>
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% endif %}
 {% endblock %}

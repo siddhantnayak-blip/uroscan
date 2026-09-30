@@ -1,41 +1,47 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Smart urine strip reader{% endblock %}
 {% block content %}
 <section class="hero">
   <div>
-    <span class="role-chip">DBMS mini-project · K J Somaiya</span>
-    <h1 style="margin-top:14px">Read a urine test strip with a phone photo.</h1>
-    <p class="lead">Upload a photo of a 10-pad urine strip. UroScan reads every pad's colour, gives you a simple
-      report with an AI explanation, saves it in a MySQL database and shows how your results change over time.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
-      <a class="btn" href="{{ url_for('register') }}">Create free account</a>
-      <a class="btn secondary" href="{{ url_for('login') }}">Log in</a>
+    <p class="eyebrow">Smart urine strip reader</p>
+    <h1>Read your urine test <span>from one photo.</span></h1>
+    <p class="lead">Snap a 10-pad test strip. UroScan matches every pad to its colour chart, turns colours into values, explains the result in plain English and keeps your history in one place.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px">
+      <a class="btn lg" href="{{ url_for('register') }}">Get started – it's free</a>
+      <a class="btn secondary lg" href="{{ url_for('login') }}">I have an account</a>
     </div>
+    <p class="small muted" style="margin-top:14px">🔒 Passwords are hashed · 🩺 Clinicians can review and add notes</p>
   </div>
-  <div>
-    <div class="strip-art" aria-label="illustration of a test strip">
-      {% for c in ['#73c8c8','#f5e6be','#ebc8b4','#7d8746','#f0be50','#d7aa3c','#bed778','#f5c8a0','#faf0e6','#af96c1'] %}<span style="background:{{ c }}"></span>{% endfor %}
+  <div class="hero-art">
+    <div class="hero-strip">{{ ui.strip_svg() }}</div>
+    <div class="analytes" style="grid-template-columns:1fr 1fr">
+      <div class="analyte Normal"><div class="top"><span class="name">Glucose</span><span class="badge Normal">Normal</span></div>
+        <div class="value">Negative</div><div class="approx">≈ 0 mg/dL</div></div>
+      <div class="analyte High"><div class="top"><span class="name">Protein</span><span class="badge High">High</span></div>
+        <div class="value">100 mg/dL</div><div class="approx">≈ 96 mg/dL</div></div>
     </div>
-    <p class="small muted" style="text-align:center;margin-top:8px">Glucose · Bilirubin · Ketones · Specific gravity · Blood · pH · Protein · Urobilinogen · Nitrite · Leukocytes</p>
   </div>
 </section>
 
-<section class="card" style="margin-bottom:18px">
+<section style="margin:34px 0">
+  <div class="grid g3">
+    <div class="card feature"><div class="ic">🎨</div><h3>Colour matching</h3>
+      <p class="muted small">Each pad is compared with every colour on the chart (K-nearest neighbours) and the closest match wins.</p></div>
+    <div class="card feature"><div class="ic">✨</div><h3>AI summary &amp; chat</h3>
+      <p class="muted small">A short, friendly explanation of every report, and a chat to ask questions about your results.</p></div>
+    <div class="card feature"><div class="ic">📈</div><h3>Trends over time</h3>
+      <p class="muted small">Compare with your previous scan and see simple graphs of how each test changes.</p></div>
+  </div>
+</section>
+
+<section class="card" style="margin-bottom:30px">
   <h2>How it works</h2>
-  <div class="flow" style="margin-top:10px">
-    <span class="step">1. Take a photo</span><span class="arrow">→</span>
-    <span class="step">2. KNN matches each pad's colour</span><span class="arrow">→</span>
-    <span class="step">3. Saved in MySQL</span><span class="arrow">→</span>
-    <span class="step">4. Report, AI summary &amp; graph</span>
+  <div class="how">
+    <div><div class="n">1</div><b>Dip the strip</b><p class="small muted">Wait about a minute for the colours to develop.</p></div>
+    <div><div class="n">2</div><b>Take a photo</b><p class="small muted">Lay it on white paper and snap it with your phone.</p></div>
+    <div><div class="n">3</div><b>Get your report</b><p class="small muted">10 results with values, status and an AI summary.</p></div>
+    <div><div class="n">4</div><b>Share with a clinician</b><p class="small muted">They review your reports and add notes.</p></div>
   </div>
-</section>
-
-<section class="grid g3">
-  <div class="card feature"><div class="icon">🎨</div><h3>Colour matching</h3>
-    <p class="muted small">Each pad's colour is compared with the colour chart and the closest match is picked (K-nearest neighbour).</p></div>
-  <div class="card feature"><div class="icon">🗄️</div><h3>Stored safely</h3>
-    <p class="muted small">Reports are saved in a MySQL database in one transaction. A trigger marks each result Normal or High.</p></div>
-  <div class="card feature"><div class="icon">🩺</div><h3>Doctor notes</h3>
-    <p class="muted small">Doctors pick a patient, open their reports and add notes the patient can read.</p></div>
 </section>
 {% endblock %}

@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}New scan{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>New scan</h1><p class="muted" style="margin:0">Take or upload a photo of your strip. We'll read all 10 pads.</p></div>
+  <div><p class="eyebrow">New scan</p><h1>Read a urine strip</h1>
+    <p class="muted" style="margin:4px 0 0">Take or upload a photo of your strip. We'll read all 10 pads in a few seconds.</p></div>
 </div>
 
 <form method="post" enctype="multipart/form-data" id="scanForm">
@@ -11,22 +13,21 @@
 <div class="grid g3">
   <div class="card span2">
     <label class="dropzone" for="photo" id="drop">
-      <div id="dropText"><div style="font-size:2.2rem">📷</div><b>Tap to take a photo or choose one</b><br>
+      <div id="dropText"><div class="cam">📷</div><b>Tap to take a photo or choose one</b><br>
         <span class="small muted">or drag a photo here · JPG / PNG · up to 12 MB</span></div>
       <img id="preview" alt="" style="display:none">
     </label>
     <input type="file" name="photo" id="photo" accept="image/*" capture="environment" hidden>
-    <button class="btn block" id="submitBtn" style="margin-top:14px" type="submit">Read my strip</button>
-    <p class="small muted" id="busyText" style="display:none;text-align:center">⏳ Reading the pads… this takes a few seconds.</p>
+    <button class="btn block lg" id="submitBtn" style="margin-top:14px" type="submit">🔍 Read my strip</button>
   </div>
 
-  <div class="grid" style="align-content:start">
+  <div class="stack">
     <div class="card">
       <h2>For a good photo</h2>
       <ol class="steps small">
         <li>Wait about 1 minute after dipping the strip</li>
         <li>Lay it on plain <b>white</b> paper</li>
-        <li>First pad (tip) on the <b>left</b></li>
+        <li>First pad (the tip) on the <b>left</b></li>
         <li>Good light, no flash, no shadow</li>
       </ol>
     </div>
@@ -39,6 +40,19 @@
   </div>
 </div>
 </form>
+
+<div class="overlay" id="overlay" role="status" aria-live="polite">
+  <div class="box">
+    <div class="scan-anim">{{ ui.strip_svg() }}<span class="beam"></span></div>
+    <h2 style="margin:0 0 14px">Reading your strip…</h2>
+    <ul class="progress-steps" id="progress">
+      <li><span class="st"></span>Finding the 10 pads</li>
+      <li><span class="st"></span>Matching colours (KNN)</li>
+      <li><span class="st"></span>Saving to the database</li>
+      <li><span class="st"></span>Writing your AI summary</li>
+    </ul>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -50,7 +64,7 @@ const photo = document.getElementById('photo'), preview = document.getElementByI
 function showPreview(file) {
   sampleField.value = '';
   preview.src = URL.createObjectURL(file); preview.style.display = 'block';
-  document.getElementById('dropText').innerHTML = '<b>' + file.name + '</b><br><span class="small muted">tap to change</span>';
+  document.getElementById('dropText').innerHTML = '<b>' + file.name.replace(/</g, '&lt;') + '</b><br><span class="small muted">tap to change</span>';
 }
 photo.onchange = () => photo.files[0] && showPreview(photo.files[0]);
 drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
@@ -58,8 +72,23 @@ drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
 drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag');
   if (e.dataTransfer.files[0]) { photo.files = e.dataTransfer.files; showPreview(photo.files[0]); } });
 
-function busy() { const b = document.getElementById('submitBtn'); b.disabled = true; b.textContent = 'Reading…';
-  document.getElementById('busyText').style.display = 'block'; }
+// progress animation while the server works
+function busy() {
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('overlay').classList.add('show');
+  const steps = document.querySelectorAll('#progress li');
+  let i = 0;
+  steps[0].classList.add('active');
+  const timer = setInterval(() => {
+    if (i >= steps.length - 1) return clearInterval(timer);   // last step stays spinning until the page changes
+    steps[i].classList.remove('active'); steps[i].classList.add('done');
+    i++; steps[i].classList.add('active');
+  }, 900);
+}
+// if the user comes back with the browser's Back button, hide the overlay again
+window.addEventListener('pageshow', () => { document.getElementById('overlay').classList.remove('show');
+  document.getElementById('submitBtn').disabled = false;
+  document.querySelectorAll('#progress li').forEach(li => li.className = ''); });
 
 document.querySelectorAll('.samples button').forEach(b => b.onclick = () => {
   sampleField.value = b.dataset.s; photo.value = ''; busy(); form.submit(); });

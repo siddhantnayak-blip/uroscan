@@ -1,59 +1,92 @@
-<!doctype html>
+{% import "_macros.html" as ui %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d9488">
   <title>{% block title %}UroScan{% endblock %} · UroScan</title>
+  <script>
+    // apply the saved light/dark theme before the page paints (no flash)
+    (function () { try { var t = localStorage.getItem('theme') ||
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', t); } catch (e) {} })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f766e'/><rect x='13' y='4' width='6' height='24' rx='2' fill='white'/><rect x='14' y='7' width='4' height='4' fill='%2367e8f9'/><rect x='14' y='13' width='4' height='4' fill='%23facc15'/><rect x='14' y='19' width='4' height='4' fill='%23f472b6'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%230d9488'/%3E%3Cg transform='rotate(-35 20 20)'%3E%3Crect x='15' y='4' width='10' height='32' rx='3' fill='white'/%3E%3Crect x='16.8' y='7' width='6.4' height='5' fill='%2322d3ee'/%3E%3Crect x='16.8' y='14' width='6.4' height='5' fill='%23facc15'/%3E%3Crect x='16.8' y='21' width='6.4' height='5' fill='%23f472b6'/%3E%3C/g%3E%3C/svg%3E">
   {% block head %}{% endblock %}
 </head>
 <body>
+{% block full %}
 <nav class="nav" id="nav">
   <div class="container">
-    <a class="logo" href="{{ url_for('index') }}">
-      <span class="logo-mark"><svg width="16" height="22" viewBox="0 0 16 22"><rect x="4" y="0" width="8" height="22" rx="2" fill="#fff"/><rect x="5.5" y="2.5" width="5" height="4" fill="#67e8f9"/><rect x="5.5" y="8.5" width="5" height="4" fill="#facc15"/><rect x="5.5" y="14.5" width="5" height="4" fill="#f472b6"/></svg></span>
-      UroScan
-    </a>
+    {{ ui.logo(url_for('index')) }}
     {% if user %}
     <div class="nav-links">
       {% if user.role == 'patient' %}
-        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint=='dashboard' }}">My dashboard</a>
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint=='dashboard' }}">Dashboard</a>
         <a href="{{ url_for('scan') }}" class="{{ 'active' if request.endpoint=='scan' }}">New scan</a>
       {% else %}
-        <a href="{{ url_for('patients') }}" class="{{ 'active' if request.endpoint in ('patients','patient_detail') }}">My patients</a>
+        <a href="{{ url_for('patients') }}" class="{{ 'active' if request.endpoint in ('patients','patient_detail') }}">Patients</a>
       {% endif %}
+      <a href="{{ url_for('profile') }}" class="{{ 'active' if request.endpoint=='profile' }}">Profile</a>
+      <a href="{{ url_for('logout') }}" class="show-sm">Log out</a>
     </div>
-    <div class="nav-user">
-      <span class="role-chip">{{ 'Doctor' if user.role == 'doctor' else 'Patient' }}</span>
-      <span class="small">{{ user.full_name.split()[0] }}</span>
-      <a class="btn secondary small" href="{{ url_for('logout') }}">Log out</a>
+    <div class="nav-right">
+      <span class="role-chip hide-sm">{{ 'Clinician' if user.role == 'clinician' else 'Patient' }}</span>
+      <button class="icon-btn" type="button" data-theme-toggle title="Light / dark mode" aria-label="Toggle dark mode">🌙</button>
+      <a href="{{ url_for('profile') }}" class="avatar" title="{{ user.full_name }}">{{ user.full_name[:1]|upper }}</a>
+      <a class="btn secondary small hide-sm" href="{{ url_for('logout') }}">Log out</a>
+      <button class="icon-btn menu-btn" type="button" aria-label="Menu" onclick="document.getElementById('nav').classList.toggle('open')">☰</button>
     </div>
-    <button class="menu-btn" aria-label="Menu" onclick="document.getElementById('nav').classList.toggle('open')">☰</button>
     {% else %}
     <div class="nav-links"></div>
-    <div class="nav-user" style="display:flex">
+    <div class="nav-right">
+      <button class="icon-btn" type="button" data-theme-toggle title="Light / dark mode" aria-label="Toggle dark mode">🌙</button>
       <a class="btn secondary small" href="{{ url_for('login') }}">Log in</a>
-      <a class="btn small" href="{{ url_for('register') }}">Sign up</a>
+      <a class="btn small hide-sm" href="{{ url_for('register') }}">Sign up</a>
     </div>
     {% endif %}
   </div>
 </nav>
-{% block full %}
 <main>
   <div class="container">
-    {% with msgs = get_flashed_messages(with_categories=true) %}
-      {% if msgs %}<div class="flashes">{% for c, m in msgs %}<div class="flash {{ c }}">{{ m }}</div>{% endfor %}</div>{% endif %}
-    {% endwith %}
+    {{ ui.flashes() }}
     {% block content %}{% endblock %}
   </div>
 </main>
+{% if user and user.role == 'patient' and request.endpoint != 'scan' %}
+<div class="mobile-cta no-print"><a class="btn" href="{{ url_for('scan') }}">📷 New scan</a></div>
+{% endif %}
+<footer class="site">UroScan · A screening aid, not a medical diagnosis.</footer>
 {% endblock %}
-<footer>
-  <div class="container">UroScan · Siddhant Nayak &amp; Anshul Parida · K J Somaiya · A screening aid, not a diagnosis.</div>
-</footer>
+<script>
+  // light / dark mode toggle
+  document.querySelectorAll('[data-theme-toggle]').forEach(function (b) {
+    var paint = function () { b.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'; };
+    paint();
+    b.addEventListener('click', function () {
+      var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('theme', next); } catch (e) {}
+      document.querySelectorAll('[data-theme-toggle]').forEach(function (x) {
+        x.textContent = next === 'dark' ? '☀️' : '🌙'; });
+      document.dispatchEvent(new Event('themechange'));
+    });
+  });
+  // show / hide password buttons
+  document.querySelectorAll('.pw-toggle').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var i = document.getElementById(b.dataset.for);
+      i.type = i.type === 'password' ? 'text' : 'password';
+      b.textContent = i.type === 'password' ? 'Show' : 'Hide';
+    });
+  });
+  // green "success" messages fade away after a few seconds
+  setTimeout(function () { document.querySelectorAll('.flash.ok').forEach(function (f) {
+    f.style.transition = 'opacity .5s'; f.style.opacity = 0; setTimeout(function () { f.remove(); }, 600); }); }, 5000);
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

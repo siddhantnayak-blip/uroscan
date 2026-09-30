@@ -1,9 +1,14 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
-<div style="max-width:520px;margin:40px auto;text-align:center" class="card">
+<div class="card empty" style="max-width:520px;margin:40px auto">
+  <div class="big-ic">🧭</div>
   <h1>{{ title }}</h1>
   <p class="muted">{{ message }}</p>
-  <a class="btn" href="{{ url_for('index') }}">Go home</a>
+  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+    <a class="btn" href="{{ url_for('index') }}">Go to home</a>
+    <button class="btn secondary" type="button" onclick="history.back()">Go back</button>
+  </div>
 </div>
 {% endblock %}

@@ -1,38 +1,33 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Log in{% endblock %}
 {% block full %}
-<div class="auth-wrap">
-  <div class="auth-side">
-    <h2>Welcome back to UroScan</h2>
-    <p style="opacity:.9">Scan a strip, see your results, track your health over time.</p>
-    <ul style="opacity:.9">
-      <li>10 tests read in seconds</li><li>Trends and alerts</li><li>Plain-English AI summary</li>
-    </ul>
-  </div>
-  <div class="auth-form">
-    <div class="card">
-      <h1>Log in</h1>
-      <p class="muted small">New here? <a href="{{ url_for('register') }}">Create an account</a></p>
-      {% with msgs = get_flashed_messages(with_categories=true) %}
-        {% if msgs %}<div class="flashes">{% for c, m in msgs %}<div class="flash {{ c }}">{{ m }}</div>{% endfor %}</div>{% endif %}
-      {% endwith %}
-      <form method="post" novalidate>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <label for="email">Email</label>
-        <input id="email" name="email" type="email" value="{{ email }}" autocomplete="email" required autofocus>
-        <label for="password">Password</label>
-        <div style="position:relative">
-          <input id="password" name="password" type="password" autocomplete="current-password" required>
-          <button type="button" class="btn secondary small" style="position:absolute;right:5px;top:5px"
-            onclick="const p=document.getElementById('password');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'Show':'Hide'">Show</button>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 16px">
-          <label class="check" style="margin:0"><input type="checkbox" name="remember" value="1"> Remember me</label>
-          <a class="small" href="{{ url_for('forgot') }}">Forgot password?</a>
-        </div>
-        <button class="btn block" type="submit">Log in</button>
-      </form>
+<div class="auth">
+  {% include "_auth_art.html" %}
+  <section class="auth-form">
+    <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode">🌙</button>
+    <div class="auth-card">
+      <div class="mobile-logo">{{ ui.logo(url_for('index')) }}</div>
+      <div class="card">
+        <p class="eyebrow">Welcome back</p>
+        <h1>Log in to UroScan</h1>
+        <p class="muted small" style="margin-top:0">Good to see you again. Enter your details below.</p>
+        {{ ui.flashes() }}
+        <form method="post" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" value="{{ email }}" autocomplete="email" placeholder="you@example.com" required autofocus>
+          {{ ui.pw_field('password', 'password', 'Password', 'Your password') }}
+          <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 18px">
+            <label class="check"><input type="checkbox" name="remember" value="1"> Remember me</label>
+            <a class="small" href="{{ url_for('forgot') }}">Forgot password?</a>
+          </div>
+          <button class="btn block lg" type="submit">Log in</button>
+        </form>
+        <div class="divider">New to UroScan?</div>
+        <a class="btn secondary block" href="{{ url_for('register') }}">Create a free account</a>
+      </div>
     </div>
-  </div>
+  </section>
 </div>
 {% endblock %}

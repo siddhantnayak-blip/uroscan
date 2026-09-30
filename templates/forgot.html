@@ -1,23 +1,33 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Forgot password{% endblock %}
-{% block content %}
-<div style="max-width:440px;margin:30px auto">
-  <div class="card">
-    <h1>Forgot password</h1>
-    <p class="muted small">Enter your email and we'll create a reset link, valid for 30 minutes.</p>
-    <form method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" required>
-      <button class="btn block" style="margin-top:14px">Create reset link</button>
-    </form>
-    {% if link %}
-    <div class="flash warn" style="margin-top:14px">
-      <b>Demo mode:</b> email sending isn't set up, so here is your link:<br>
-      <a href="{{ link }}">Reset my password</a>
+{% block full %}
+<div class="auth">
+  {% include "_auth_art.html" %}
+  <section class="auth-form">
+    <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode">🌙</button>
+    <div class="auth-card">
+      <div class="mobile-logo">{{ ui.logo(url_for('index')) }}</div>
+      <div class="card">
+        <p class="eyebrow">Account help</p>
+        <h1>Forgot your password?</h1>
+        <p class="muted small" style="margin-top:0">Enter your email and we'll create a reset link (valid for 30 minutes).</p>
+        {{ ui.flashes() }}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required placeholder="you@example.com">
+          <button class="btn block lg" style="margin-top:16px">Create reset link</button>
+        </form>
+        {% if link %}
+        <div class="flash warn" style="margin-top:16px;display:block">
+          <b>Demo mode:</b> email sending isn't set up, so here is your link:<br><a href="{{ link }}">Reset my password →</a>
+        </div>
+        {% endif %}
+        <div class="divider">or</div>
+        <a class="btn secondary block" href="{{ url_for('login') }}">Back to log in</a>
+      </div>
     </div>
-    {% endif %}
-    <p class="small" style="margin-top:14px"><a href="{{ url_for('login') }}">← Back to log in</a></p>
-  </div>
+  </section>
 </div>
 {% endblock %}
