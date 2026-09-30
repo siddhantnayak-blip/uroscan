@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}New scan{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>New scan</h1><p class="muted" style="margin:0">Take or upload a photo of the strip. We'll read all 10 pads.</p></div>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="scanForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="sample" id="sampleField">
+<div class="grid g3">
+  <div class="card span2">
+    {% if patients %}
+      <label for="patient_id" style="margin-top:0">Patient</label>
+      <select name="patient_id" id="patient_id" required>
+        <option value="">Choose a patient…</option>
+        {% for p in patients %}<option value="{{ p.user_id }}">{{ p.full_name }} ({{ p.email }})</option>{% endfor %}
+      </select>
+    {% endif %}
+
+    <div style="display:flex;gap:8px;margin:14px 0 10px;flex-wrap:wrap">
+      <button type="button" class="btn secondary" id="camBtn">📷 Use camera</button>
+      <button type="button" class="btn secondary" onclick="document.getElementById('photo').click()">🖼️ Choose photo</button>
+    </div>
+
+    <div id="camWrap" style="display:none;margin-bottom:12px">
+      <div class="guide"><video id="video" playsinline autoplay muted></video><div class="frame"></div>
+        <div class="hint">Line the strip up inside the box · tip on the LEFT</div></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button type="button" class="btn" id="snapBtn">Capture</button>
+        <button type="button" class="btn secondary" id="camClose">Close camera</button>
+      </div>
+    </div>
+
+    <div class="dropzone" id="drop">
+      <div id="dropText"><b>Drop a strip photo here</b> or tap to choose<br><span class="small muted">JPG or PNG, up to 12 MB</span></div>
+      <img id="preview" alt="" style="display:none">
+      <input type="file" name="photo" id="photo" accept="image/*" capture="environment" hidden>
+    </div>
+
+    <button class="btn block" id="submitBtn" style="margin-top:14px" type="submit">
+      <span class="loading">⏳</span> Read strip
+    </button>
+    <p class="small muted" id="busyText" style="display:none;text-align:center">Reading pads and matching colours…</p>
+  </div>
+
+  <div class="grid" style="align-content:start">
+    <div class="card">
+      <h2>Tips for a good reading</h2>
+      <ol class="steps small">
+        <li>Dip the strip, then wait about 60 seconds (use the timer)</li>
+        <li>Lay it on a plain <b>white</b> card or paper</li>
+        <li>Tip (first pad) on the <b>left</b>, handle on the right</li>
+        <li>Even daylight or room light, no flash, no shadows</li>
+        <li>Keep all 10 pads in the photo</li>
+      </ol>
+    </div>
+    <div class="card" style="text-align:center">
+      <h2>Reading timer</h2>
+      <div class="timer" id="timer">1:00</div>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button type="button" class="btn secondary small" id="tStart">Start</button>
+        <button type="button" class="btn secondary small" id="tReset">Reset</button>
+      </div>
+      <p class="small muted" style="margin-bottom:0">Strips must be read at the right time for accurate colours.</p>
+    </div>
+    <div class="card">
+      <h2>No strip? Try a sample</h2>
+      <p class="small muted">Simulated strip photos with different results and lighting.</p>
+      <div class="samples">
+        {% for i in range(1, 7) %}<button type="button" data-s="{{ i }}" title="Sample {{ i }}"><img src="{{ url_for('static', filename='samples/sample_' ~ i ~ '.jpg') }}" alt="Sample strip {{ i }}"></button>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const photo = document.getElementById('photo'), preview = document.getElementById('preview'), drop = document.getElementById('drop');
+const form = document.getElementById('scanForm'), sampleField = document.getElementById('sampleField');
+function show(file) { if (!file) return; sampleField.value = '';
+  preview.src = URL.createObjectURL(file); preview.style.display = 'block'; document.getElementById('dropText').innerHTML = '<b>' + (file.name || 'Captured photo') + '</b> · tap to change'; }
+drop.onclick = () => photo.click();
+photo.onchange = () => show(photo.files[0]);
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) { photo.files = e.dataTransfer.files; show(photo.files[0]); } });
+
+document.querySelectorAll('.samples button').forEach(b => b.onclick = () => {
+  const pSel = document.getElementById('patient_id');
+  if (pSel && !pSel.value) { alertMsg('Choose a patient first.'); return; }
+  sampleField.value = b.dataset.s; photo.value = ''; busy(); form.submit(); });
+
+form.onsubmit = e => {
+  const pSel = document.getElementById('patient_id');
+  if (pSel && !pSel.value) { e.preventDefault(); alertMsg('Choose a patient first.'); return; }
+  if (!sampleField.value && !photo.files.length) { e.preventDefault(); alertMsg('Please take or choose a photo first.'); return; }
+  busy(); };
+function busy() { document.getElementById('submitBtn').classList.add('busy'); document.getElementById('submitBtn').disabled = true;
+  document.getElementById('busyText').style.display = 'block'; }
+function alertMsg(m) { let f = document.querySelector('.flashes'); if (!f) { f = document.createElement('div'); f.className = 'flashes';
+  document.querySelector('main .container').prepend(f); } f.innerHTML = '<div class="flash error">' + m + '</div>'; window.scrollTo(0, 0); }
+
+// camera
+let stream;
+document.getElementById('camBtn').onclick = async () => {
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } } });
+    document.getElementById('video').srcObject = stream; document.getElementById('camWrap').style.display = 'block';
+  } catch (e) { alertMsg('Camera not available here. Use "Choose photo" instead (on phones it opens the camera).'); } };
+function stopCam() { stream && stream.getTracks().forEach(t => t.stop()); document.getElementById('camWrap').style.display = 'none'; }
+document.getElementById('camClose').onclick = stopCam;
+document.getElementById('snapBtn').onclick = () => {
+  const v = document.getElementById('video'), c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
+  c.toBlob(b => { const f = new File([b], 'camera.jpg', { type: 'image/jpeg' }); const dt = new DataTransfer(); dt.items.add(f);
+    photo.files = dt.files; show(f); stopCam(); }, 'image/jpeg', 0.92); };
+
+// timer
+let left = 60, tid = null; const tEl = document.getElementById('timer');
+function paint() { tEl.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); tEl.style.color = left === 0 ? '#16a34a' : ''; }
+document.getElementById('tStart').onclick = () => { if (tid) return; tid = setInterval(() => { left = Math.max(0, left - 1); paint();
+  if (!left) { clearInterval(tid); tid = null; tEl.textContent = 'Read now!'; if (navigator.vibrate) navigator.vibrate(300); } }, 1000); };
+document.getElementById('tReset').onclick = () => { clearInterval(tid); tid = null; left = 60; paint(); };
+</script>
+{% endblock %}

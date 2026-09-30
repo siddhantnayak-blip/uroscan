@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<div class="grid g2" style="max-width:900px">
+  <div class="card">
+    <h1>Profile</h1>
+    <p><b>{{ user.full_name }}</b><br><span class="muted">{{ user.email }}</span></p>
+    <p>Role: <span class="role-chip">{{ ROLE_LABELS[user.role] }}</span></p>
+  </div>
+  <div class="card">
+    <h2>Change password</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>Current password</label><input type="password" name="current" required>
+      <label>New password</label><input type="password" name="password" required>
+      <label>Confirm new password</label><input type="password" name="confirm" required>
+      <button class="btn" style="margin-top:12px">Update</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

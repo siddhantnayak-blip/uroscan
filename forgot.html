@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Forgot password{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:30px auto">
+  <div class="card">
+    <h1>Forgot password</h1>
+    <p class="muted small">Enter your email and we'll create a reset link, valid for 30 minutes.</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" required>
+      <button class="btn block" style="margin-top:14px">Create reset link</button>
+    </form>
+    {% if link %}
+    <div class="flash warn" style="margin-top:14px">
+      <b>Demo mode:</b> email sending isn't set up, so here is your link:<br>
+      <a href="{{ link }}">Reset my password</a>
+    </div>
+    {% endif %}
+    <p class="small" style="margin-top:14px"><a href="{{ url_for('login') }}">← Back to log in</a></p>
+  </div>
+</div>
+{% endblock %}

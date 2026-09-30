@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Patients{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Patients</h1><p class="muted" style="margin:0">Sorted by reports waiting for review, then by latest flags.</p></div>
+  <input id="q" placeholder="Search name or email…" style="max-width:260px">
+</div>
+<div class="card">
+  <div class="table-wrap"><table id="pt">
+    <thead><tr><th>Patient</th><th>Scans</th><th>Last scan</th><th>Latest flags</th><th>To review</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><b>{{ r.full_name }}</b><div class="small muted">{{ r.email }}</div></td>
+        <td>{{ r.scans }}</td>
+        <td>{{ r.last_scan|dt if r.last_scan else '—' }}</td>
+        <td>{% if r.latest_abnormal is not none %}<span class="badge {{ 'High' if r.latest_abnormal else 'Normal' }}">{{ r.latest_abnormal }}</span>{% else %}—{% endif %}</td>
+        <td>{% if r.to_review %}<span class="badge Trace">{{ r.to_review|int }}</span>{% else %}—{% endif %}</td>
+        <td style="white-space:nowrap"><a href="{{ url_for('clinician_patient', pid=r.user_id) }}">Dashboard</a> · <a href="{{ url_for('history', patient=r.user_id) }}">Reports</a></td>
+      </tr>
+    {% else %}<tr><td colspan="6" class="muted">No patients yet.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('q').oninput = e => { const q = e.target.value.toLowerCase();
+  document.querySelectorAll('#pt tbody tr').forEach(tr => tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'); };
+</script>
+{% endblock %}

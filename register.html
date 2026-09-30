@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Sign up{% endblock %}
+{% block full %}
+<div class="auth-wrap">
+  <div class="auth-side">
+    <h2>Create your UroScan account</h2>
+    <p style="opacity:.9">Choose your role:</p>
+    <ul style="opacity:.9">
+      <li><b>Patient</b>: scan your own strips and track trends</li>
+      <li><b>Lab technician</b>: scan strips for patients</li>
+      <li><b>Clinician</b>: review patients' reports and add notes</li>
+    </ul>
+  </div>
+  <div class="auth-form">
+    <div class="card">
+      <h1>Sign up</h1>
+      <p class="muted small">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% if msgs %}<div class="flashes">{% for c, m in msgs %}<div class="flash {{ c }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+      {% endwith %}
+      <form method="post" id="regform" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="full_name">Full name</label>
+        <input id="full_name" name="full_name" value="{{ form.get('full_name','') }}" required autocomplete="name">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" value="{{ form.get('email','') }}" required autocomplete="email">
+        <label for="role">I am a…</label>
+        <select id="role" name="role">
+          {% for v, l in [('patient','Patient'),('labtech','Lab technician'),('clinician','Clinician')] %}
+          <option value="{{ v }}" {{ 'selected' if form.get('role')==v }}>{{ l }}</option>{% endfor %}
+        </select>
+        <div id="patient-fields" class="row">
+          <div><label for="dob">Date of birth</label><input id="dob" name="dob" type="date" value="{{ form.get('dob','') }}"></div>
+          <div><label for="gender">Gender</label>
+            <select id="gender" name="gender"><option value="">Prefer not to say</option>
+              {% for gdr in ['Male','Female','Other'] %}<option {{ 'selected' if form.get('gender')==gdr }}>{{ gdr }}</option>{% endfor %}
+            </select></div>
+        </div>
+        <div id="clin-fields" style="display:none">
+          <label for="specialty">Specialty</label><input id="specialty" name="specialty" placeholder="e.g. Nephrology">
+        </div>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="new-password" placeholder="8+ characters, a letter and a number">
+        <div class="pw-meter"><span id="pwbar"></span></div>
+        <div class="small muted" id="pwtext">&nbsp;</div>
+        <label for="confirm">Confirm password</label>
+        <input id="confirm" name="confirm" type="password" required autocomplete="new-password">
+        <div class="small" id="match" style="min-height:1.2em"></div>
+        <button class="btn block" type="submit" style="margin-top:10px">Create account</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const role = document.getElementById('role'), pf = document.getElementById('patient-fields'), cf = document.getElementById('clin-fields');
+function roleFields(){ pf.style.display = role.value==='patient' ? 'flex' : 'none'; cf.style.display = role.value==='clinician' ? 'block' : 'none'; }
+role.onchange = roleFields; roleFields();
+const pw = document.getElementById('password'), cf2 = document.getElementById('confirm');
+pw.oninput = () => {
+  const v = pw.value; let s = 0;
+  if (v.length >= 8) s++; if (/[A-Za-z]/.test(v) && /\d/.test(v)) s++; if (/[^A-Za-z0-9]/.test(v)) s++; if (v.length >= 12) s++;
+  const cols = ['#e5e7eb','#dc2626','#f59e0b','#16a34a','#0f766e'], words = ['','Weak','Okay','Strong','Very strong'];
+  const bar = document.getElementById('pwbar'); bar.style.width = (s*25)+'%'; bar.style.background = cols[s];
+  document.getElementById('pwtext').textContent = v ? words[s] : ' '; checkMatch();
+};
+function checkMatch(){ const m = document.getElementById('match');
+  if (!cf2.value) { m.textContent=''; return; }
+  m.textContent = cf2.value===pw.value ? '✓ Passwords match' : '✗ Passwords don\'t match';
+  m.style.color = cf2.value===pw.value ? '#15803d' : '#be123c'; }
+cf2.oninput = checkMatch;
+document.getElementById('regform').onsubmit = e => {
+  const errs = [];
+  if (document.getElementById('full_name').value.trim().length < 2) errs.push('Enter your full name');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(document.getElementById('email').value)) errs.push('Enter a valid email');
+  if (pw.value.length < 8 || !/[A-Za-z]/.test(pw.value) || !/\d/.test(pw.value)) errs.push('Password needs 8+ characters with a letter and a number');
+  if (pw.value !== cf2.value) errs.push("Passwords don't match");
+  if (errs.length) { e.preventDefault(); alertBox(errs); }
+};
+function alertBox(errs){ let box = document.querySelector('.flashes.js');
+  if (!box) { box = document.createElement('div'); box.className='flashes js'; document.getElementById('regform').prepend(box); }
+  box.innerHTML = errs.map(x => '<div class="flash error">'+x+'</div>').join(''); }
+</script>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Reset password{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:30px auto">
+  <div class="card">
+    <h1>Choose a new password</h1>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="password">New password</label>
+      <input id="password" name="password" type="password" required placeholder="8+ characters, a letter and a number">
+      <label for="confirm">Confirm new password</label>
+      <input id="confirm" name="confirm" type="password" required>
+      <button class="btn block" style="margin-top:14px">Update password</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

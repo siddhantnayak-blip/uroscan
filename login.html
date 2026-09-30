@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block full %}
+<div class="auth-wrap">
+  <div class="auth-side">
+    <h2>Welcome back to UroScan</h2>
+    <p style="opacity:.9">Scan a strip, see your results, track your health over time.</p>
+    <ul style="opacity:.9">
+      <li>10 tests read in seconds</li><li>Trends and alerts</li><li>Plain-English AI summary</li>
+    </ul>
+  </div>
+  <div class="auth-form">
+    <div class="card">
+      <h1>Log in</h1>
+      <p class="muted small">New here? <a href="{{ url_for('register') }}">Create an account</a></p>
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% if msgs %}<div class="flashes">{% for c, m in msgs %}<div class="flash {{ c }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+      {% endwith %}
+      <form method="post" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" value="{{ email }}" autocomplete="email" required autofocus>
+        <label for="password">Password</label>
+        <div style="position:relative">
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button type="button" class="btn secondary small" style="position:absolute;right:5px;top:5px"
+            onclick="const p=document.getElementById('password');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'Show':'Hide'">Show</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 16px">
+          <label class="check" style="margin:0"><input type="checkbox" name="remember" value="1"> Remember me</label>
+          <a class="small" href="{{ url_for('forgot') }}">Forgot password?</a>
+        </div>
+        <button class="btn block" type="submit">Log in</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
