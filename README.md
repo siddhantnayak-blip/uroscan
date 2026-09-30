@@ -3,16 +3,18 @@
 DBMS mini-project (S.Y. B.Tech) by **Siddhant Nayak (16014225060)** and **Anshul Parida (16014225063)**, K J Somaiya.
 
 A patient uploads a photo of a 10-pad urine test strip. The app reads the colour of each pad, matches it to the
-colour chart with **KNN**, saves the report in **MySQL**, and shows a simple report, an AI explanation and a
-trend graph. A doctor can pick a patient, open their reports and add notes.
+colour chart with **KNN**, saves the report in **MySQL**, and shows a simple report, an AI explanation and
+trend graphs. A clinician can pick a patient, open their reports and add notes.
 
 ## Features
-- **Login and sign-up** for two roles: patient and doctor. Passwords are hashed, the app locks an email after 5 wrong tries for 15 minutes, and there's a forgot-password link.
-- **Scan:** take or upload a photo, or try one of the 6 sample strips.
-- **Report:** a table of the 10 tests showing the result, the normal range and Normal/Trace/High, plus the strip photo with the pads marked.
-- **AI summary** of every report and an **"Ask UroScan" chat**, both using the Google Gemini API. If there's no key, the app uses simple built-in rules instead.
-- **Graph:** pick a test to see how it changed across your scans.
-- **Doctor:** a patient list, then a patient's reports, then one report where the doctor can add a note.
+- **Login and sign-up** for two roles: patient and clinician. Passwords are hashed (with a strength meter and a "re-enter password" check), the app locks an email after 5 wrong tries for 15 minutes, and there's a forgot-password link.
+- **Profile:** patients add their date of birth and gender; age and gender are shown on every report.
+- **Scan:** take or upload a photo, or try one of the 6 sample strips. A progress animation shows each step.
+- **Report:** each of the 10 tests in its own box with the value, approx number, normal range, status, the colour chart with the matched colour ringed, and the change since the previous scan (↑ / ↓ / =). It can be printed as a lab-style report.
+- **AI summary** of every report and an **"Ask" chat**, both using the Google Gemini API. If there's no key, the app uses simple built-in rules instead.
+- **Graphs:** a trend line for any test, a "normal vs flagged" bar chart per scan (GROUP BY) and a doughnut of the latest scan.
+- **Clinician:** a dashboard with counts of new reports to review and patients with flagged results, a red dot next to those patients, then a patient's reports ("Needs review" until a note is added) and a report page to add notes.
+- **Design:** teal theme, light / dark mode, phone-friendly layout with a sticky "New scan" button.
 
 ## How the strip is read (`vision.py`)
 1. Find the coloured squares in the photo using OpenCV contours.
@@ -25,12 +27,12 @@ On 60 simulated strip photos, it found every strip and picked the exact chart le
 ## Database (`schema.sql`)
 | Concept | Where |
 |---|---|
-| Tables | `users`, `analyte`, `reference_color`, `test_report`, `test_result`, `doctor_note`, `login_attempt`, `password_reset` |
+| Tables | `users`, `analyte`, `reference_color`, `test_report`, `test_result`, `clinician_note`, `login_attempt`, `password_reset` |
 | Weak entity, composite key | `test_result (report_id, analyte_id)` |
 | Constraints | PRIMARY KEY, FOREIGN KEY (ON DELETE CASCADE), UNIQUE, CHECK |
 | Normalisation | 3NF/BCNF: test names and normal ranges are stored once in `analyte` |
 | Triggers | `trg_set_status` (Normal/Trace/High/Low), `trg_count_abnormal` |
-| View | `v_patient_summary` (the doctor's patient list) |
+| View | `v_patient_summary` (the clinician's patient list: report counts, reports to review, latest flags) |
 | Stored procedure | `get_test_history(patient, test)` (the graph) |
 | Index | `idx_report_patient` |
 | Transaction | `save_scan()` in `app.py`: the report and its 10 results are saved together, or rolled back |
@@ -45,7 +47,7 @@ On 60 simulated strip photos, it found every strip and picked the exact chart le
 | `reference.py` | The colour chart and normal ranges |
 | `ai.py` | Gemini AI summary and chat |
 | `templates/` | HTML pages |
-| `static/` | CSS, JavaScript (graph and chat) and sample strip photos |
+| `static/` | CSS (light + dark theme), JavaScript (graphs and chat) and sample strip photos |
 | `tools/` | Makes simulated strip photos and measures accuracy |
 
 ## Running it

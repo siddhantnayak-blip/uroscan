@@ -75,6 +75,35 @@ def execute(sql, args=None, commit=True):
     return last
 
 
+def _exists(cur, sql, args):
+    cur.execute(sql, args)
+    return cur.fetchone()["n"] > 0
+
+
+def upgrade_v2(cur, conn):
+    """Small ALTER TABLE upgrades from the previous version, keeping all existing data:
+    'doctor' becomes 'clinician', and patients get date of birth + gender."""
+    t = "SELECT COUNT(*) AS n FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s"
+    c = ("SELECT COUNT(*) AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() "
+         "AND TABLE_NAME = %s AND COLUMN_NAME = %s")
+    if not _exists(cur, t, ("users",)):
+        return                                        # brand-new database, schema.sql creates everything
+    if _exists(cur, t, ("doctor_note",)) and not _exists(cur, t, ("clinician_note",)):
+        cur.execute("RENAME TABLE doctor_note TO clinician_note")
+        cur.execute("ALTER TABLE clinician_note RENAME COLUMN doctor_id TO clinician_id")
+    cur.execute("SELECT COLUMN_TYPE AS ct FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() "
+                "AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'")
+    if "doctor" in cur.fetchone()["ct"]:
+        cur.execute("ALTER TABLE users MODIFY role ENUM('patient','doctor','clinician') NOT NULL DEFAULT 'patient'")
+        cur.execute("UPDATE users SET role = 'clinician' WHERE role = 'doctor'")
+        cur.execute("ALTER TABLE users MODIFY role ENUM('patient','clinician') NOT NULL DEFAULT 'patient'")
+    if not _exists(cur, c, ("users", "dob")):
+        cur.execute("ALTER TABLE users ADD COLUMN dob DATE NULL AFTER role")
+    if not _exists(cur, c, ("users", "gender")):
+        cur.execute("ALTER TABLE users ADD COLUMN gender ENUM('Male','Female','Other') NULL AFTER dob")
+    conn.commit()
+
+
 def init_db():
     """Create tables, view, triggers and procedure from schema.sql, then fill the colour chart."""
     conn = _connect()
@@ -100,6 +129,8 @@ def init_db():
         cur.execute("DROP PROCEDURE IF EXISTS get_patient_trend")
         cur.execute("SET FOREIGN_KEY_CHECKS = 1")
         conn.commit()
+
+    upgrade_v2(cur, conn)
 
     path = os.path.join(os.path.dirname(__file__), "schema.sql")
     with open(path, encoding="utf-8") as fh:

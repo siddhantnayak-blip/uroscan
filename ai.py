@@ -7,11 +7,11 @@ import logging
 import requests
 
 log = logging.getLogger("uroscan.ai")
-DISCLAIMER = "UroScan is a screening aid, not a diagnosis. Please confirm any abnormal result with a doctor."
+DISCLAIMER = "UroScan is a screening aid, not a diagnosis. Please confirm any abnormal result with a clinician."
 
 SYSTEM = ("You are UroScan's assistant. You explain urine dipstick screening results in simple, calm, "
           "plain English for a patient. Never diagnose, never prescribe, never give doses. Mention possible "
-          "common causes only as possibilities and recommend seeing a doctor for anything abnormal. "
+          "common causes only as possibilities and recommend seeing a clinician (doctor) for anything abnormal. "
           "Keep answers short (under 120 words), no markdown headings.")
 
 
@@ -83,7 +83,7 @@ def summarise(results):
     lines = "\n".join(f"- {r['analyte']}: {r['level_label']} ({r['status']})" for r in results)
     text = _gemini("Explain these urine test strip results to the patient in 3-5 sentences:\n" + lines)
     if text:
-        return text + ("" if "doctor" in text.lower() else "\n\n" + DISCLAIMER), "gemini"
+        return text + ("" if ("doctor" in text.lower() or "clinician" in text.lower()) else "\n\n" + DISCLAIMER), "gemini"
     return rule_summary(results), "rules"
 
 

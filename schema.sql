@@ -4,13 +4,15 @@
 -- Statements are separated by lines containing only:  -- @@
 -- =====================================================================
 
--- 1. USERS: one table for both patients and doctors (role column)
+-- 1. USERS: one table for both patients and clinicians (role column)
 CREATE TABLE IF NOT EXISTS users (
   user_id       INT AUTO_INCREMENT PRIMARY KEY,
   full_name     VARCHAR(100) NOT NULL,
   email         VARCHAR(120) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  role          ENUM('patient','doctor') NOT NULL DEFAULT 'patient',
+  role          ENUM('patient','clinician') NOT NULL DEFAULT 'patient',
+  dob           DATE NULL,
+  gender        ENUM('Male','Female','Other') NULL,
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 -- @@
@@ -64,15 +66,15 @@ CREATE TABLE IF NOT EXISTS test_result (
   FOREIGN KEY (analyte_id) REFERENCES analyte(analyte_id)
 );
 -- @@
--- 6. DOCTOR_NOTE: notes a doctor writes on a report
-CREATE TABLE IF NOT EXISTS doctor_note (
-  note_id    INT AUTO_INCREMENT PRIMARY KEY,
-  report_id  INT NOT NULL,
-  doctor_id  INT NOT NULL,
-  note       TEXT NOT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+-- 6. CLINICIAN_NOTE: notes a clinician writes on a report
+CREATE TABLE IF NOT EXISTS clinician_note (
+  note_id      INT AUTO_INCREMENT PRIMARY KEY,
+  report_id    INT NOT NULL,
+  clinician_id INT NOT NULL,
+  note         TEXT NOT NULL,
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (report_id) REFERENCES test_report(report_id) ON DELETE CASCADE,
-  FOREIGN KEY (doctor_id) REFERENCES users(user_id) ON DELETE CASCADE
+  FOREIGN KEY (clinician_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 -- @@
 -- 7. Login safety tables (lock after 5 wrong passwords, password reset links)
@@ -95,15 +97,21 @@ CREATE TABLE IF NOT EXISTS password_reset (
 -- 8. INDEX: makes "all reports of a patient, newest first" fast
 CREATE INDEX idx_report_patient ON test_report (patient_id, created_at);
 -- @@
--- 9. VIEW: one line per patient for the doctor's list
+-- 9. VIEW: one line per patient for the clinician's list
+--    to_review    = reports that have no clinician note yet
+--    latest_flags = how many tests were flagged in the patient's newest report
 CREATE OR REPLACE VIEW v_patient_summary AS
-SELECT u.user_id AS patient_id, u.full_name, u.email,
+SELECT u.user_id AS patient_id, u.full_name, u.email, u.dob, u.gender,
        COUNT(r.report_id) AS total_reports,
-       MAX(r.created_at)  AS last_scan
+       MAX(r.created_at)  AS last_scan,
+       SUM(r.report_id IS NOT NULL AND
+           NOT EXISTS (SELECT 1 FROM clinician_note n WHERE n.report_id = r.report_id)) AS to_review,
+       (SELECT r2.abnormal_count FROM test_report r2 WHERE r2.patient_id = u.user_id
+        ORDER BY r2.created_at DESC, r2.report_id DESC LIMIT 1) AS latest_flags
 FROM users u
 LEFT JOIN test_report r ON r.patient_id = u.user_id
 WHERE u.role = 'patient'
-GROUP BY u.user_id, u.full_name, u.email;
+GROUP BY u.user_id, u.full_name, u.email, u.dob, u.gender;
 -- @@
 -- 10. TRIGGER: decide Normal / Trace / High / Low automatically when a result is saved
 DROP TRIGGER IF EXISTS trg_set_status;

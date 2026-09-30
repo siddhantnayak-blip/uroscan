@@ -1,18 +1,18 @@
 """UroScan - Smart Urine Strip Reader with a Healthcare Database.
 
 Flask web app for a DBMS mini-project:
-  * patients and doctors log in (passwords are hashed)
+  * patients and clinicians log in (passwords are hashed)
   * a patient uploads a photo of a urine strip -> vision.py reads the 10 pads with KNN colour matching
   * the result is saved in MySQL in ONE transaction; triggers mark each test Normal / Trace / High / Low
   * the patient sees a simple report, an AI summary, a trend graph and can chat with the AI
-  * a doctor picks a patient, opens a report and adds notes
+  * a clinician picks a patient, opens a report and adds notes
 """
 import io
 import os
 import re
 import secrets
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from functools import wraps
 
 from flask import (Flask, render_template, request, redirect, url_for, session, flash,
@@ -76,7 +76,7 @@ def load_user():
                                    message="UroScan can't reach its database right now. Please try again in a minute."), 503
     g.user = None
     if session.get("uid"):
-        g.user = query("SELECT user_id, full_name, email, role FROM users WHERE user_id=%s", (session["uid"],), one=True)
+        g.user = query("SELECT user_id, full_name, email, role, dob, gender FROM users WHERE user_id=%s", (session["uid"],), one=True)
         if not g.user:
             session.clear()
     # every form carries a secret token so other websites can't submit forms for you (CSRF protection)
@@ -89,7 +89,7 @@ def load_user():
 def template_values():
     if "csrf_token" not in session:
         session["csrf_token"] = secrets.token_hex(16)
-    return dict(csrf_token=session["csrf_token"], user=g.get("user"), ai_on=ai.ai_available())
+    return dict(csrf_token=session["csrf_token"], user=g.get("user"), ai_on=ai.ai_available(), now=datetime.now())
 
 
 def login_required(role=None):
@@ -107,7 +107,7 @@ def login_required(role=None):
 
 
 def can_see(patient_id):
-    return g.user and (g.user["role"] == "doctor" or g.user["user_id"] == patient_id)
+    return g.user and (g.user["role"] == "clinician" or g.user["user_id"] == patient_id)
 
 
 # ---------------------------------------------------------------- saving a scan (ACID transaction)
@@ -142,7 +142,7 @@ def save_scan(patient_id, readings, image):
 
 
 def report_results(report_id):
-    rows = query("SELECT a.name AS analyte, a.unit, t.level_label, t.approx_value, t.status, t.r, t.g, t.b "
+    rows = query("SELECT a.name AS analyte, a.unit, t.level_label, t.level_index, t.approx_value, t.status, t.r, t.g, t.b "
                  "FROM test_result t JOIN analyte a ON a.analyte_id = t.analyte_id "
                  "WHERE t.report_id=%s ORDER BY a.pad_order", (report_id,))
     for r in rows:
@@ -151,7 +151,48 @@ def report_results(report_id):
         if r["analyte"] in MEASURED and r["approx_value"] is not None:
             number = f"{float(r['approx_value']):.{MEASURED[r['analyte']]}f}"
             r["measured"] = f"{number} {r['unit'] or ''}".strip()
+        # the colour chart for this test (every level), so the page can ring the matched colour
+        r["chart"] = [{"label": label, "hex": "#%02x%02x%02x" % tuple(rgb)} for label, _, rgb in CHART[r["analyte"]]]
     return rows
+
+
+def compare_with_previous(report, results):
+    """Adds r['prev'] and r['change'] (up / down / same) using the patient's scan just before this one."""
+    prev = query("SELECT report_id, created_at FROM test_report WHERE patient_id=%s AND "
+                 "(created_at < %s OR (created_at = %s AND report_id < %s)) "
+                 "ORDER BY created_at DESC, report_id DESC LIMIT 1",
+                 (report["patient_id"], report["created_at"], report["created_at"], report["report_id"]), one=True)
+    if not prev:
+        return None
+    before = {r["analyte"]: r for r in report_results(prev["report_id"])}
+    for r in results:
+        p = before.get(r["analyte"])
+        if p:
+            r["prev"] = p["measured"] or p["level_label"]
+            diff = r["level_index"] - p["level_index"]
+            r["change"] = "up" if diff > 0 else "down" if diff < 0 else "same"
+    return prev
+
+
+def age_of(dob):
+    if not dob:
+        return None
+    t = date.today()
+    return t.year - dob.year - ((t.month, t.day) < (dob.month, dob.day))
+
+
+def check_profile(dob, gender):
+    errors = []
+    if dob:
+        try:
+            d = datetime.strptime(dob, "%Y-%m-%d").date()
+            if d > date.today() or d.year < 1900:
+                errors.append("Please enter a real date of birth.")
+        except ValueError:
+            errors.append("Please enter a valid date of birth.")
+    if gender and gender not in ("Male", "Female", "Other"):
+        errors.append("Please choose a gender from the list.")
+    return errors
 
 
 def patient_reports(patient_id):
@@ -190,16 +231,22 @@ def register():
             errors.append("Password must be at least 8 characters with a letter and a number.")
         if password != confirm:
             errors.append("Passwords don't match.")
-        if role not in ("patient", "doctor"):
-            errors.append("Please choose Patient or Doctor.")
+        if role not in ("patient", "clinician"):
+            errors.append("Please choose Patient or Clinician.")
+        dob = form.get("dob") or None
+        gender = form.get("gender") or None
+        if role == "patient":
+            errors += check_profile(dob, gender)
+        else:
+            dob = gender = None
         if not errors and query("SELECT 1 FROM users WHERE email=%s", (email,), one=True):
             errors.append("An account with this email already exists. Try logging in.")
         if errors:
             for e in errors:
                 flash(e, "error")
             return render_template("register.html", form=form)
-        uid = execute("INSERT INTO users (full_name, email, password_hash, role) VALUES (%s,%s,%s,%s)",
-                      (name, email, generate_password_hash(password), role))
+        uid = execute("INSERT INTO users (full_name, email, password_hash, role, dob, gender) VALUES (%s,%s,%s,%s,%s,%s)",
+                      (name, email, generate_password_hash(password), role, dob, gender))
         session.clear()
         session["uid"] = uid
         flash(f"Welcome to UroScan, {name.split()[0]}!", "ok")
@@ -277,17 +324,18 @@ def reset(token):
 @app.route("/dashboard")
 @login_required()
 def dashboard():
-    if g.user["role"] == "doctor":
+    if g.user["role"] == "clinician":
         return redirect(url_for("patients"))
     pid = g.user["user_id"]
     reports = patient_reports(pid)
     latest = query("SELECT * FROM test_report WHERE report_id=%s", (reports[0]["report_id"],), one=True) if reports else None
     results = report_results(latest["report_id"]) if latest else []
-    notes = query("SELECT n.note, n.created_at, n.report_id, u.full_name FROM doctor_note n "
-                  "JOIN users u ON u.user_id = n.doctor_id JOIN test_report r ON r.report_id = n.report_id "
+    prev = compare_with_previous(latest, results) if latest else None
+    notes = query("SELECT n.note, n.created_at, n.report_id, u.full_name FROM clinician_note n "
+                  "JOIN users u ON u.user_id = n.clinician_id JOIN test_report r ON r.report_id = n.report_id "
                   "WHERE r.patient_id=%s ORDER BY n.created_at DESC LIMIT 3", (pid,))
     return render_template("dashboard.html", reports=reports, latest=latest, results=results, notes=notes,
-                           analytes=PAD_ORDER, pid=pid)
+                           prev=prev, analytes=PAD_ORDER, pid=pid)
 
 
 @app.route("/scan", methods=["GET", "POST"])
@@ -317,13 +365,15 @@ def scan():
 @app.route("/report/<int:report_id>")
 @login_required()
 def report(report_id):
-    rep = query("SELECT r.*, u.full_name AS patient_name FROM test_report r JOIN users u ON u.user_id = r.patient_id "
-                "WHERE r.report_id=%s", (report_id,), one=True)
+    rep = query("SELECT r.*, u.full_name AS patient_name, u.dob, u.gender, u.email AS patient_email "
+                "FROM test_report r JOIN users u ON u.user_id = r.patient_id WHERE r.report_id=%s", (report_id,), one=True)
     if not rep or not can_see(rep["patient_id"]):
         abort(404)
-    notes = query("SELECT n.*, u.full_name FROM doctor_note n JOIN users u ON u.user_id = n.doctor_id "
+    notes = query("SELECT n.*, u.full_name FROM clinician_note n JOIN users u ON u.user_id = n.clinician_id "
                   "WHERE n.report_id=%s ORDER BY n.created_at", (report_id,))
-    return render_template("report.html", rep=rep, results=report_results(report_id), notes=notes)
+    results = report_results(report_id)
+    prev = compare_with_previous(rep, results)
+    return render_template("report.html", rep=rep, results=results, notes=notes, prev=prev, age=age_of(rep["dob"]))
 
 
 @app.route("/report/<int:report_id>/photo")
@@ -363,6 +413,51 @@ def graph_data(pid):
                             "status": r["status"], "id": r["report_id"]} for r in rows])
 
 
+@app.route("/api/summary/<int:pid>")
+@login_required()
+def summary_data(pid):
+    """Data for two simple charts: normal vs flagged per scan (GROUP BY), and the latest scan's breakdown."""
+    if not can_see(pid):
+        abort(403)
+    per_scan = query("SELECT r.report_id, r.created_at, "
+                     "SUM(t.status = 'Normal') AS normal, SUM(t.status = 'Trace') AS trace, "
+                     "SUM(t.status IN ('High','Low')) AS flagged "
+                     "FROM test_report r JOIN test_result t ON t.report_id = r.report_id "
+                     "WHERE r.patient_id=%s GROUP BY r.report_id, r.created_at "
+                     "ORDER BY r.created_at DESC, r.report_id DESC LIMIT 10", (pid,))
+    per_scan.reverse()
+    latest = query("SELECT t.status, COUNT(*) AS n FROM test_result t WHERE t.report_id = "
+                   "(SELECT report_id FROM test_report WHERE patient_id=%s ORDER BY created_at DESC, report_id DESC LIMIT 1) "
+                   "GROUP BY t.status", (pid,))
+    return jsonify(scans=[{"label": r["created_at"].strftime("%d %b") + f" #{r['report_id']}", "normal": int(r["normal"] or 0),
+                           "trace": int(r["trace"] or 0), "flagged": int(r["flagged"] or 0)} for r in per_scan],
+                   latest={r["status"]: int(r["n"]) for r in latest})
+
+
+@app.route("/profile", methods=["GET", "POST"])
+@login_required()
+def profile():
+    if request.method == "POST":
+        name = request.form.get("full_name", "").strip()
+        dob = request.form.get("dob") or None
+        gender = request.form.get("gender") or None
+        errors = [] if len(name) >= 2 else ["Please enter your full name."]
+        errors += check_profile(dob, gender)
+        if errors:
+            for e in errors:
+                flash(e, "error")
+        else:
+            execute("UPDATE users SET full_name=%s, dob=%s, gender=%s WHERE user_id=%s", (name, dob, gender, g.user["user_id"]))
+            flash("Profile saved.", "ok")
+            return redirect(url_for("profile"))
+    stats = query("SELECT COUNT(*) AS reports, MIN(created_at) AS first_scan, MAX(created_at) AS last_scan "
+                  "FROM test_report WHERE patient_id=%s", (g.user["user_id"],), one=True)
+    if g.user["role"] == "clinician":
+        stats = query("SELECT COUNT(*) AS notes, COUNT(DISTINCT report_id) AS reviewed FROM clinician_note "
+                      "WHERE clinician_id=%s", (g.user["user_id"],), one=True)
+    return render_template("profile.html", stats=stats, age=age_of(g.user["dob"]))
+
+
 @app.route("/api/chat", methods=["POST"])
 @login_required()
 def api_chat():
@@ -382,29 +477,43 @@ def api_chat():
     return jsonify(answer=ai.chat(question, history, latest))
 
 
-# ---------------------------------------------------------------- doctor
+# ---------------------------------------------------------------- clinician
 @app.route("/patients")
-@login_required("doctor")
+@login_required("clinician")
 def patients():
-    rows = query("SELECT * FROM v_patient_summary ORDER BY last_scan IS NULL, last_scan DESC")
-    return render_template("clinician.html", rows=rows)
+    rows = query("SELECT * FROM v_patient_summary ORDER BY to_review DESC, last_scan IS NULL, last_scan DESC")
+    stats = dict(patients=len(rows), to_review=sum(int(r["to_review"] or 0) for r in rows),
+                 flagged=sum(1 for r in rows if (r["latest_flags"] or 0) > 0),
+                 reports=sum(int(r["total_reports"] or 0) for r in rows))
+    for r in rows:
+        r["age"] = age_of(r["dob"])
+    return render_template("clinician.html", rows=rows, stats=stats)
 
 
 @app.route("/patients/<int:pid>")
-@login_required("doctor")
+@login_required("clinician")
 def patient_detail(pid):
-    patient = query("SELECT user_id, full_name, email FROM users WHERE user_id=%s AND role='patient'", (pid,), one=True)
+    patient = query("SELECT user_id, full_name, email, dob, gender, created_at FROM users "
+                    "WHERE user_id=%s AND role='patient'", (pid,), one=True)
     if not patient:
         abort(404)
-    return render_template("history.html", patient=patient, reports=patient_reports(pid), analytes=PAD_ORDER)
+    reports = query("SELECT r.report_id, r.created_at, r.abnormal_count, COUNT(n.note_id) AS notes "
+                    "FROM test_report r LEFT JOIN clinician_note n ON n.report_id = r.report_id "
+                    "WHERE r.patient_id=%s GROUP BY r.report_id, r.created_at, r.abnormal_count "
+                    "ORDER BY r.created_at DESC, r.report_id DESC", (pid,))
+    latest = report_results(reports[0]["report_id"]) if reports else []
+    if reports:
+        compare_with_previous(dict(reports[0], patient_id=pid), latest)
+    return render_template("history.html", patient=patient, reports=reports, latest=latest,
+                           age=age_of(patient["dob"]), analytes=PAD_ORDER)
 
 
 @app.route("/report/<int:report_id>/note", methods=["POST"])
-@login_required("doctor")
+@login_required("clinician")
 def add_note(report_id):
     note = request.form.get("note", "").strip()
     if note:
-        execute("INSERT INTO doctor_note (report_id, doctor_id, note) VALUES (%s,%s,%s)",
+        execute("INSERT INTO clinician_note (report_id, clinician_id, note) VALUES (%s,%s,%s)",
                 (report_id, g.user["user_id"], note[:2000]))
         flash("Note added.", "ok")
     return redirect(url_for("report", report_id=report_id))
