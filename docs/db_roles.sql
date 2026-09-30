@@ -8,7 +8,7 @@ SHOW TABLES;
 SHOW TRIGGERS;
 SHOW PROCEDURE STATUS WHERE Db = DATABASE();
 
--- View: one row per patient (used on the doctor's "My patients" page)
+-- View: one row per patient (used on the clinician's "Patients" page)
 SELECT * FROM v_patient_summary;
 
 -- Stored procedure: Glucose history of patient 1 (used for the graph)
@@ -34,10 +34,10 @@ START TRANSACTION;
 INSERT INTO test_report (patient_id) VALUES (1);
 ROLLBACK;
 
--- GRANT / REVOKE demo: a read-only user for doctors (change the password first)
-CREATE USER IF NOT EXISTS 'uro_doctor'@'%' IDENTIFIED BY 'ChangeMe_Doctor1';
-GRANT SELECT ON test_report TO 'uro_doctor'@'%';
-GRANT SELECT ON test_result TO 'uro_doctor'@'%';
-GRANT SELECT, INSERT ON doctor_note TO 'uro_doctor'@'%';
-REVOKE INSERT ON doctor_note FROM 'uro_doctor'@'%';
-SHOW GRANTS FOR 'uro_doctor'@'%';
+-- GRANT / REVOKE demo: a read-only user for clinicians (change the password first)
+CREATE USER IF NOT EXISTS 'uro_clinician'@'%' IDENTIFIED BY 'ChangeMe_Clinician1';
+GRANT SELECT ON test_report TO 'uro_clinician'@'%';
+GRANT SELECT ON test_result TO 'uro_clinician'@'%';
+GRANT SELECT, INSERT ON clinician_note TO 'uro_clinician'@'%';
+REVOKE INSERT ON clinician_note FROM 'uro_clinician'@'%';
+SHOW GRANTS FOR 'uro_clinician'@'%';
