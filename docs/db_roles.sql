@@ -1,45 +1,43 @@
 -- =====================================================================
--- UroScan: database-level access control (GRANT / REVOKE)
--- Run manually as the admin user (e.g. in Aiven's query editor or MySQL Workbench)
--- to show role separation at the DBMS level during the viva.
--- Change the passwords before running.
+-- UroScan: DBMS demo queries for the viva
+-- Run these in Aiven's query editor or MySQL Workbench.
 -- =====================================================================
 
--- Patient app role: can read results, cannot change reference data
-CREATE USER IF NOT EXISTS 'uro_patient'@'%' IDENTIFIED BY 'ChangeMe_Patient1';
-GRANT SELECT ON defaultdb.v_report_summary TO 'uro_patient'@'%';
-GRANT SELECT ON defaultdb.v_latest_results TO 'uro_patient'@'%';
-GRANT EXECUTE ON PROCEDURE defaultdb.get_patient_trend TO 'uro_patient'@'%';
+-- See all tables, the trigger and the procedure
+SHOW TABLES;
+SHOW TRIGGERS;
+SHOW PROCEDURE STATUS WHERE Db = DATABASE();
 
--- Lab technician: can insert new samples / strips / reports / results
-CREATE USER IF NOT EXISTS 'uro_labtech'@'%' IDENTIFIED BY 'ChangeMe_Labtech1';
-GRANT SELECT ON defaultdb.analyte TO 'uro_labtech'@'%';
-GRANT SELECT ON defaultdb.reference_color TO 'uro_labtech'@'%';
-GRANT SELECT, INSERT ON defaultdb.urine_sample TO 'uro_labtech'@'%';
-GRANT SELECT, INSERT ON defaultdb.test_strip TO 'uro_labtech'@'%';
-GRANT SELECT, INSERT ON defaultdb.test_report TO 'uro_labtech'@'%';
-GRANT SELECT, INSERT ON defaultdb.diagnostic_result TO 'uro_labtech'@'%';
+-- View: one row per patient (used on the doctor's "My patients" page)
+SELECT * FROM v_patient_summary;
 
--- Clinician: read everything clinical, write notes and review status
-CREATE USER IF NOT EXISTS 'uro_clinician'@'%' IDENTIFIED BY 'ChangeMe_Clinic1';
-GRANT SELECT ON defaultdb.* TO 'uro_clinician'@'%';
-GRANT INSERT ON defaultdb.clinician_note TO 'uro_clinician'@'%';
-GRANT UPDATE (reviewed_by, reviewed_at) ON defaultdb.test_report TO 'uro_clinician'@'%';
+-- Stored procedure: Glucose history of patient 1 (used for the graph)
+CALL get_test_history(1, 'Glucose');
 
--- Clinicians must NOT read password hashes or the login log
-REVOKE SELECT ON defaultdb.* FROM 'uro_clinician'@'%';
-GRANT SELECT ON defaultdb.patient TO 'uro_clinician'@'%';
-GRANT SELECT ON defaultdb.urine_sample TO 'uro_clinician'@'%';
-GRANT SELECT ON defaultdb.test_report TO 'uro_clinician'@'%';
-GRANT SELECT ON defaultdb.diagnostic_result TO 'uro_clinician'@'%';
-GRANT SELECT ON defaultdb.analyte TO 'uro_clinician'@'%';
-GRANT SELECT ON defaultdb.clinician_note TO 'uro_clinician'@'%';
-GRANT SELECT (user_id, full_name, email, role) ON defaultdb.users TO 'uro_clinician'@'%';
+-- JOIN: full report 1 with test names
+SELECT a.name, t.level_label, t.status
+FROM test_result t JOIN analyte a ON a.analyte_id = t.analyte_id
+WHERE t.report_id = 1
+ORDER BY a.pad_order;
 
-SHOW GRANTS FOR 'uro_clinician'@'%';
+-- GROUP BY: how many times each test was flagged
+SELECT a.name, COUNT(*) AS times_flagged
+FROM test_result t JOIN analyte a ON a.analyte_id = t.analyte_id
+WHERE t.status <> 'Normal'
+GROUP BY a.name ORDER BY times_flagged DESC;
 
--- Useful demo queries -------------------------------------------------
--- CALL get_patient_trend(1, 'Glucose');
--- SELECT * FROM v_latest_results WHERE patient_id = 1;
--- SHOW TRIGGERS;
--- EXPLAIN SELECT * FROM urine_sample WHERE patient_id = 1 ORDER BY collected_at;   -- uses idx_sample_patient_time
+-- Index in use (look for idx_report_patient in the "key" column)
+EXPLAIN SELECT * FROM test_report WHERE patient_id = 1 ORDER BY created_at;
+
+-- Transaction demo: nothing is saved because of ROLLBACK
+START TRANSACTION;
+INSERT INTO test_report (patient_id) VALUES (1);
+ROLLBACK;
+
+-- GRANT / REVOKE demo: a read-only user for doctors (change the password first)
+CREATE USER IF NOT EXISTS 'uro_doctor'@'%' IDENTIFIED BY 'ChangeMe_Doctor1';
+GRANT SELECT ON test_report TO 'uro_doctor'@'%';
+GRANT SELECT ON test_result TO 'uro_doctor'@'%';
+GRANT SELECT, INSERT ON doctor_note TO 'uro_doctor'@'%';
+REVOKE INSERT ON doctor_note FROM 'uro_doctor'@'%';
+SHOW GRANTS FOR 'uro_doctor'@'%';
