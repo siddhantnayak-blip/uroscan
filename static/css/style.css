@@ -353,3 +353,12 @@ footer.site { text-align: center; color: var(--muted); font-size: .8rem; padding
   .banner b { font-size: .98rem; }
 }
 input:not([type=checkbox]):not([type=radio]), select { min-height: 48px; }
+/* ---------- brand: uroscan emblem + wordmark ---------- */
+.logo { gap: 9px; }
+.logo .mark { width: 42px; height: 42px; object-fit: contain; }
+.logo .mark.white { filter: brightness(0) invert(1); }
+.wordmark { font-family: "Montserrat", "Inter", system-ui, sans-serif; font-weight: 800; letter-spacing: -.02em;
+  text-transform: lowercase; color: var(--brand); font-size: 1.35rem; line-height: 1; }
+.auth-art .wordmark { color: #fff; }
+h1, h2, .hero h1, .auth-art h2 { font-family: "Montserrat", "Inter", system-ui, sans-serif; letter-spacing: -.02em; }
+.print-mark { width: 44px; height: 44px; object-fit: contain; }
