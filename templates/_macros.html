@@ -1,22 +1,11 @@
 {# Reusable pieces: logo, strip illustration, flash messages #}
 
-{% macro logo_mark(cls='mark') -%}
-<svg class="{{ cls }}" viewBox="0 0 40 40" aria-hidden="true">
-  <defs><linearGradient id="lg-{{ cls }}" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#0f766e"/></linearGradient></defs>
-  <rect width="40" height="40" rx="11" fill="#0d9488"/>
-  <rect width="40" height="40" rx="11" fill="url(#lg-{{ cls }})"/>
-  <g transform="rotate(-35 20 20)">
-    <rect x="15" y="4" width="10" height="32" rx="3" fill="#fff"/>
-    <rect x="16.8" y="7" width="6.4" height="5" rx="1.2" fill="#22d3ee"/>
-    <rect x="16.8" y="14" width="6.4" height="5" rx="1.2" fill="#facc15"/>
-    <rect x="16.8" y="21" width="6.4" height="5" rx="1.2" fill="#f472b6"/>
-  </g>
-</svg>
+{% macro logo_mark(cls='mark', white=false) -%}
+<img class="{{ cls }}{{ ' white' if white }}" src="{{ url_for('static', filename='img/logo-mark.png') }}" alt="" width="40" height="40">
 {%- endmacro %}
 
-{% macro logo(href='/') -%}
-<a class="logo" href="{{ href }}">{{ logo_mark() }}<span>Uro<b>Scan</b></span></a>
+{% macro logo(href='/', white=false) -%}
+<a class="logo" href="{{ href }}" aria-label="uroscan home">{{ logo_mark('mark', white) }}<span class="wordmark">uroscan</span></a>
 {%- endmacro %}
 
 {% macro strip_svg() -%}
