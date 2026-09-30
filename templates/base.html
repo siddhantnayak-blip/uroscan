@@ -20,22 +20,14 @@
     {% if user %}
     <div class="nav-links">
       {% if user.role == 'patient' %}
-        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint=='dashboard' }}">Dashboard{% if unread_alerts %} <span class="badge High" title="unread alerts">{{ unread_alerts }}</span>{% endif %}</a>
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint=='dashboard' }}">My dashboard</a>
         <a href="{{ url_for('scan') }}" class="{{ 'active' if request.endpoint=='scan' }}">New scan</a>
-        <a href="{{ url_for('history') }}" class="{{ 'active' if request.endpoint=='history' }}">History</a>
-      {% elif user.role == 'clinician' %}
-        <a href="{{ url_for('clinician') }}" class="{{ 'active' if request.endpoint in ('clinician','clinician_patient') }}">Patients</a>
-        <a href="{{ url_for('scan') }}" class="{{ 'active' if request.endpoint=='scan' }}">Scan for patient</a>
-      {% elif user.role == 'labtech' %}
-        <a href="{{ url_for('scan') }}" class="{{ 'active' if request.endpoint=='scan' }}">Scan for patient</a>
-      {% elif user.role == 'admin' %}
-        <a href="{{ url_for('admin') }}" class="{{ 'active' if request.endpoint=='admin' }}">Admin</a>
-        <a href="{{ url_for('clinician') }}" class="{{ 'active' if request.endpoint=='clinician' }}">Patients</a>
+      {% else %}
+        <a href="{{ url_for('patients') }}" class="{{ 'active' if request.endpoint in ('patients','patient_detail') }}">My patients</a>
       {% endif %}
-      <a href="{{ url_for('profile') }}" class="{{ 'active' if request.endpoint=='profile' }}">Profile</a>
     </div>
     <div class="nav-user">
-      <span class="role-chip">{{ ROLE_LABELS[user.role] }}</span>
+      <span class="role-chip">{{ 'Doctor' if user.role == 'doctor' else 'Patient' }}</span>
       <span class="small">{{ user.full_name.split()[0] }}</span>
       <a class="btn secondary small" href="{{ url_for('logout') }}">Log out</a>
     </div>

@@ -1,43 +1,46 @@
 {% extends "base.html" %}
-{% block title %}History{% endblock %}
+{% block title %}{{ patient.full_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Scan history</h1><p class="muted" style="margin:0">{{ pname }}</p></div>
-  <a class="btn" href="{{ url_for('scan') }}">+ New scan</a>
-</div>
-<form class="card" method="get" style="margin-bottom:16px">
-  {% if user.role != 'patient' %}<input type="hidden" name="patient" value="{{ pid }}">{% endif %}
-  <div class="grid g5" style="align-items:end">
-    <div><label>From</label><input type="date" name="from" value="{{ args.get('from','') }}"></div>
-    <div><label>To</label><input type="date" name="to" value="{{ args.get('to','') }}"></div>
-    <div><label>Flagged test</label><select name="analyte"><option value="">Any</option>
-      {% for a in analytes %}<option {{ 'selected' if args.get('analyte')==a }}>{{ a }}</option>{% endfor %}</select></div>
-    <div><label class="check"><input type="checkbox" name="abnormal" value="1" {{ 'checked' if args.get('abnormal') }}> Flagged only</label></div>
-    <div style="display:flex;gap:8px"><button class="btn">Filter</button><a class="btn secondary" href="{{ url_for('history', patient=pid if user.role!='patient' else None) }}">Clear</a></div>
+  <div>
+    <p class="small muted" style="margin:0"><a href="{{ url_for('patients') }}">← My patients</a></p>
+    <h1>{{ patient.full_name }}</h1>
+    <p class="muted" style="margin:0">{{ patient.email }} · {{ reports|length }} report{{ 's' if reports|length != 1 }}</p>
   </div>
-</form>
-<div class="card">
-  <div class="table-wrap"><table>
-    <thead><tr><th>Report</th><th>Date</th><th>Flags</th><th>Flagged tests</th><th>Reviewed</th><th></th></tr></thead>
-    <tbody>
-    {% for r in rows %}
+</div>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Reports</h2>
+    <table class="simple">
+      <thead><tr><th>Date</th><th>Result</th><th></th></tr></thead>
+      {% for r in reports %}
       <tr>
-        <td>#{{ r.report_id }} {% if r.is_demo %}<span class="badge demo">demo</span>{% endif %}</td>
         <td>{{ r.created_at|dt }}</td>
-        <td><span class="badge {{ 'High' if r.abnormal_count else 'Normal' }}">{{ r.abnormal_count }}</span></td>
-        <td class="small">{{ r.flags or '—' }}</td>
-        <td>{{ '✓' if r.reviewed_by else '' }}</td>
-        <td><a href="{{ url_for('report', rid=r.report_id) }}">Open →</a></td>
+        <td>{% if r.abnormal_count %}<span class="badge High">{{ r.abnormal_count }} flagged</span>{% else %}<span class="badge Normal">All normal</span>{% endif %}</td>
+        <td style="text-align:right"><a href="{{ url_for('report', report_id=r.report_id) }}">Open &amp; add note →</a></td>
       </tr>
-    {% else %}
-      <tr><td colspan="6" class="muted">No reports match.</td></tr>
-    {% endfor %}
-    </tbody>
-  </table></div>
-  <div style="display:flex;justify-content:space-between;margin-top:12px">
-    {% set base = args.to_dict() %}
-    {% if page > 1 %}{% set _ = base.update({'page': page-1}) %}<a class="btn secondary small" href="{{ url_for('history', **base) }}">← Newer</a>{% else %}<span></span>{% endif %}
-    {% if has_next %}{% set _ = base.update({'page': page+1}) %}<a class="btn secondary small" href="{{ url_for('history', **base) }}">Older →</a>{% endif %}
+      {% else %}
+      <tr><td colspan="3" class="muted">This patient has no reports yet.</td></tr>
+      {% endfor %}
+    </table>
   </div>
+  {% if reports %}
+  <div class="card">
+    <div class="page-head" style="margin-bottom:6px">
+      <h2 style="margin:0">Graph</h2>
+      <select id="testSel" style="width:auto">{% for a in analytes %}<option>{{ a }}</option>{% endfor %}</select>
+    </div>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+    <p class="small muted" style="margin:6px 0 0">Green area = normal range. Click a dot to open that report.</p>
+  </div>
+  {% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+{% if reports %}
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<script>const PID = {{ patient.user_id }}, CSRF = "{{ csrf_token }}";</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endif %}
 {% endblock %}

@@ -3,10 +3,10 @@
 {% block content %}
 <section class="hero">
   <div>
-    <span class="role-chip">Smart urine strip reader + healthcare database</span>
-    <h1 style="margin-top:14px">Read a 10-pad urine strip with your phone camera.</h1>
-    <p class="lead">UroScan matches every pad's colour to the reference chart, turns it into a result, saves it safely
-      in a MySQL database and shows your trends over time, with a plain-English AI explanation.</p>
+    <span class="role-chip">DBMS mini-project · K J Somaiya</span>
+    <h1 style="margin-top:14px">Read a urine test strip with a phone photo.</h1>
+    <p class="lead">Upload a photo of a 10-pad urine strip. UroScan reads every pad's colour, gives you a simple
+      report with an AI explanation, saves it in a MySQL database and shows how your results change over time.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
       <a class="btn" href="{{ url_for('register') }}">Create free account</a>
       <a class="btn secondary" href="{{ url_for('login') }}">Log in</a>
@@ -16,33 +16,26 @@
     <div class="strip-art" aria-label="illustration of a test strip">
       {% for c in ['#73c8c8','#f5e6be','#ebc8b4','#7d8746','#f0be50','#d7aa3c','#bed778','#f5c8a0','#faf0e6','#af96c1'] %}<span style="background:{{ c }}"></span>{% endfor %}
     </div>
-    <p class="small muted" style="text-align:center;margin-top:8px">10 pads · Glucose, Bilirubin, Ketones, SG, Blood, pH, Protein, Urobilinogen, Nitrite, Leukocytes</p>
+    <p class="small muted" style="text-align:center;margin-top:8px">Glucose · Bilirubin · Ketones · Specific gravity · Blood · pH · Protein · Urobilinogen · Nitrite · Leukocytes</p>
   </div>
 </section>
 
 <section class="card" style="margin-bottom:18px">
   <h2>How it works</h2>
   <div class="flow" style="margin-top:10px">
-    <span class="step">📷 Phone photo</span><span class="arrow">→</span>
-    <span class="step">🔍 Quality check</span><span class="arrow">→</span>
-    <span class="step">🎨 AI colour match (KNN)</span><span class="arrow">→</span>
-    <span class="step">🗄️ MySQL (1 transaction)</span><span class="arrow">→</span>
-    <span class="step">📈 Dashboard &amp; trends</span>
+    <span class="step">1. Take a photo</span><span class="arrow">→</span>
+    <span class="step">2. KNN matches each pad's colour</span><span class="arrow">→</span>
+    <span class="step">3. Saved in MySQL</span><span class="arrow">→</span>
+    <span class="step">4. Report, AI summary &amp; graph</span>
   </div>
 </section>
 
 <section class="grid g3">
   <div class="card feature"><div class="icon">🎨</div><h3>Colour matching</h3>
-    <p class="muted small">Each pad is white-balanced, converted to CIELAB and matched to the chart with a K-nearest-neighbour search using the CIEDE2000 colour distance. You get the level, an approximate value and a confidence score.</p></div>
-  <div class="card feature"><div class="icon">🗄️</div><h3>Healthcare database</h3>
-    <p class="muted small">A normalised (BCNF) MySQL design with triggers that flag abnormal values, views, a stored procedure, indexes and ACID transactions, so a report is never half-saved.</p></div>
-  <div class="card feature"><div class="icon">🤖</div><h3>AI explanations</h3>
-    <p class="muted small">An LLM explains results in plain English, predicts trends and answers questions about your own history. Only test values are sent, never your name.</p></div>
-  <div class="card feature"><div class="icon">🔐</div><h3>Secure accounts</h3>
-    <p class="muted small">Hashed passwords, lockout after repeated failed logins, password reset, CSRF protection and role-based access for patients, lab technicians, clinicians and admins.</p></div>
-  <div class="card feature"><div class="icon">📈</div><h3>Trends that matter</h3>
-    <p class="muted small">Charts for every test with the normal range shaded, alerts when a value keeps rising or stays abnormal for 3 scans in a row.</p></div>
-  <div class="card feature"><div class="icon">🩺</div><h3>Doctor review</h3>
-    <p class="muted small">Clinicians see patients sorted by risk, review reports and add notes that patients can read on their dashboard.</p></div>
+    <p class="muted small">Each pad's colour is compared with the colour chart and the closest match is picked (K-nearest neighbour).</p></div>
+  <div class="card feature"><div class="icon">🗄️</div><h3>Stored safely</h3>
+    <p class="muted small">Reports are saved in a MySQL database in one transaction. A trigger marks each result Normal or High.</p></div>
+  <div class="card feature"><div class="icon">🩺</div><h3>Doctor notes</h3>
+    <p class="muted small">Doctors pick a patient, open their reports and add notes the patient can read.</p></div>
 </section>
 {% endblock %}

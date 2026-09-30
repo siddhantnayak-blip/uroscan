@@ -3,82 +3,75 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="small muted no-print" style="margin:0"><a href="{{ url_for('history', patient=rep.patient_id) }}">← All reports</a></p>
-    <h1>Report #{{ rep.report_id }} {% if rep.is_demo %}<span class="badge demo">demo</span>{% endif %}</h1>
-    <p class="muted" style="margin:0">{{ rep.patient_name }} · {{ rep.created_at|dt }}
-      {% if rep.created_by_name and rep.created_by_name != rep.patient_name %} · scanned by {{ rep.created_by_name }}{% endif %}
-      {% if rep.reviewer %} · <span style="color:#15803d">✓ reviewed by {{ rep.reviewer }}</span>{% endif %}</p>
+    <p class="small muted no-print" style="margin:0">
+      {% if user.role == 'doctor' %}<a href="{{ url_for('patient_detail', pid=rep.patient_id) }}">← {{ rep.patient_name }}</a>
+      {% else %}<a href="{{ url_for('dashboard') }}">← My dashboard</a>{% endif %}
+    </p>
+    <h1>Urine test report</h1>
+    <p class="muted" style="margin:0">{{ rep.patient_name }} · {{ rep.created_at|dt }} · Report #{{ rep.report_id }}</p>
   </div>
-  <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap">
-    {% if prev %}<a class="btn secondary" href="{{ url_for('report', rid=prev.report_id) }}">← Previous</a>{% endif %}
-    <button class="btn secondary" onclick="window.print()">Download PDF</button>
-    <a class="btn" href="{{ url_for('scan') }}">New scan</a>
+  <div class="no-print" style="display:flex;gap:8px">
+    <button class="btn secondary" onclick="window.print()">🖨️ Print / Save PDF</button>
+    {% if user.role == 'patient' %}<a class="btn" href="{{ url_for('scan') }}">New scan</a>{% endif %}
   </div>
+</div>
+
+{% set normal = results|selectattr('status', 'equalto', 'Normal')|list|length %}
+<div class="big-status {{ 'ok' if normal == 10 else 'bad' }}" style="margin-bottom:16px">
+  {% if normal == 10 %}✅ All 10 tests are in the normal range{% else %}⚠️ {{ 10 - normal }} of 10 tests are outside the normal range{% endif %}
 </div>
 
 <div class="grid g3" style="margin-bottom:16px">
   <div class="card span2">
-    <div class="page-head" style="margin-bottom:8px"><h2 style="margin:0">Results</h2>
-      <span class="badge {{ 'High' if rep.abnormal_count else 'Normal' }}">{{ rep.abnormal_count }} flagged</span></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>#</th><th>Test</th><th>Pad</th><th>Result</th><th>Chart match</th><th>Confidence</th><th>Status</th></tr></thead>
-      <tbody>
+    <h2>Results</h2>
+    <table class="simple">
+      <thead><tr><th>Test</th><th>Your result</th><th>Normal</th><th style="text-align:right">Status</th></tr></thead>
       {% for r in results %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td><b>{{ r.analyte }}</b><div class="small muted">{{ r.description }}</div></td>
-          <td>{% if r.r is not none %}<span class="swatch" style="background:rgb({{ r.r }},{{ r.g }},{{ r.b }})"></span>{% endif %}</td>
-          <td><b>{{ r.level_label }}</b>
-            {% if r.approx_value is not none and r.approx_value|float != r.numeric_value|float and r.unit %}<div class="small muted">≈ {{ '%.0f'|format(r.approx_value|float) if r.approx_value|float > 5 else '%.1f'|format(r.approx_value|float) }} {{ r.unit }}</div>{% endif %}</td>
-          <td><div class="levels">{% for lab, val, c in r.chart %}<i title="{{ lab }}" class="{{ 'sel' if loop.index0 == r.level_index }}" style="background:rgb({{ c[0] }},{{ c[1] }},{{ c[2] }})"></i>{% endfor %}</div></td>
-          <td><div class="conf-bar"><span style="width:{{ (r.confidence|float * 100)|round|int }}%;background:{{ '#be123c' if r.confidence|float < 0.6 else '#0f766e' }}"></span></div>
-              <span class="small muted">{{ (r.confidence|float * 100)|round|int }}%{% if r.delta_e is not none %} · ΔE {{ r.delta_e }}{% endif %}</span></td>
-          <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
-        </tr>
+      <tr>
+        <td><span class="dot" style="background:rgb({{ r.r }},{{ r.g }},{{ r.b }})"></span>{{ r.analyte }}</td>
+        <td><b>{{ r.level_label }}</b>{% if r.measured %}<div class="small muted">≈ {{ r.measured }}</div>{% endif %}</td>
+        <td class="muted">{{ r.normal }}</td>
+        <td style="text-align:right"><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+      </tr>
       {% endfor %}
-      </tbody>
-    </table></div>
-    <p class="small muted">Chart match shows every colour level for that test; the outlined square is the closest match (KNN, CIEDE2000 distance ΔE). Confidence is lower when the pad colour sits between two levels.</p>
+    </table>
+    <p class="small muted" style="margin-bottom:0">The coloured dot is the colour we read from your strip. It is matched to the nearest colours on the chart (KNN); ≈ shows the estimated value when the colour falls between two chart levels.</p>
   </div>
   <div class="grid" style="align-content:start">
     <div class="card">
-      <h2>AI summary</h2>
+      <h2>What this means</h2>
       <div class="summary">{{ rep.ai_summary or 'No summary.' }}</div>
     </div>
-    {% if rep.has_image %}
+    {% if rep.strip_image %}
     <div class="card">
-      <h2>Detected pads</h2>
-      <img class="report-img" src="{{ url_for('report_image', rid=rep.report_id, kind='annotated') }}" alt="Strip with the 10 detected pads outlined">
-      <details class="small" style="margin-top:8px"><summary>Original photo</summary>
-        <img class="report-img" style="margin-top:6px" src="{{ url_for('report_image', rid=rep.report_id, kind='image') }}" alt="Original photo"></details>
-      {% if quality %}<p class="small muted" style="margin-bottom:0">Sharpness {{ quality.sharpness }} · brightness {{ quality.brightness }}{% if quality.glare_pads %} · glare on pad {{ quality.glare_pads|join(', ') }}{% endif %}</p>{% endif %}
+      <h2>Your strip</h2>
+      <img class="report-img" src="{{ url_for('report_photo', report_id=rep.report_id) }}" alt="Strip photo with the 10 pads marked">
+      <p class="small muted" style="margin-bottom:0">Red boxes show the 10 pads we read.</p>
     </div>
     {% endif %}
   </div>
 </div>
 
 <div class="card">
-  <h2>Clinician notes</h2>
-  {% for n in notes %}<div style="border-bottom:1px solid var(--line);padding:8px 0"><b>{{ n.full_name }}</b> <span class="small muted">{{ n.created_at|dt }}</span><div>{{ n.note }}</div></div>
+  <h2>Doctor's notes</h2>
+  {% for n in notes %}
+    <div class="note"><b>{{ n.full_name }}</b> <span class="small muted">· {{ n.created_at|dt }}</span><div>{{ n.note }}</div></div>
   {% else %}<p class="muted small">No notes yet.</p>{% endfor %}
-  {% if user.role == 'clinician' %}
-  <form method="post" action="{{ url_for('add_note', rid=rep.report_id) }}" class="no-print">
+  {% if user.role == 'doctor' %}
+  <form method="post" action="{{ url_for('add_note', report_id=rep.report_id) }}" class="no-print">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <label for="note">Add a note for the patient</label>
-    <textarea id="note" name="note" rows="3" placeholder="e.g. Leukocytes high, please do a urine culture test."></textarea>
-    <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
-      <label class="check" style="margin:0"><input type="checkbox" name="review" value="1" {{ 'checked' if not rep.reviewed_by }}> Mark report as reviewed</label>
-      <button class="btn">Save</button>
-    </div>
+    <textarea id="note" name="note" rows="3" required placeholder="e.g. Leukocytes are high. Please get a urine culture test done."></textarea>
+    <button class="btn" style="margin-top:10px">Save note</button>
   </form>
   {% endif %}
-  {% if user.role == 'admin' or user.user_id == rep.patient_id %}
-  <form method="post" action="{{ url_for('delete_report', rid=rep.report_id) }}" class="no-print" style="margin-top:14px"
-        onsubmit="return confirm('Delete this report permanently?')">
+  {% if user.role == 'patient' %}
+  <form method="post" action="{{ url_for('delete_report', report_id=rep.report_id) }}" class="no-print" style="margin-top:14px"
+        onsubmit="return confirm('Delete this report?')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button class="btn danger small">Delete report</button>
+    <button class="btn danger small">Delete this report</button>
   </form>
   {% endif %}
-  <p class="small muted" style="margin-bottom:0">UroScan is a screening aid, not a diagnosis. Always confirm abnormal results with a doctor.</p>
 </div>
+<p class="small muted" style="margin-top:14px">UroScan is a screening aid, not a diagnosis. Always confirm abnormal results with a doctor.</p>
 {% endblock %}

@@ -6,9 +6,8 @@
     <h2>Create your UroScan account</h2>
     <p style="opacity:.9">Choose your role:</p>
     <ul style="opacity:.9">
-      <li><b>Patient</b>: scan your own strips and track trends</li>
-      <li><b>Lab technician</b>: scan strips for patients</li>
-      <li><b>Clinician</b>: review patients' reports and add notes</li>
+      <li><b>Patient</b>: scan your strip, see your report and graph</li>
+      <li><b>Doctor</b>: open your patients' reports and add notes</li>
     </ul>
   </div>
   <div class="auth-form">
@@ -26,19 +25,9 @@
         <input id="email" name="email" type="email" value="{{ form.get('email','') }}" required autocomplete="email">
         <label for="role">I am a…</label>
         <select id="role" name="role">
-          {% for v, l in [('patient','Patient'),('labtech','Lab technician'),('clinician','Clinician')] %}
-          <option value="{{ v }}" {{ 'selected' if form.get('role')==v }}>{{ l }}</option>{% endfor %}
+          <option value="patient" {{ 'selected' if form.get('role')!='doctor' }}>Patient</option>
+          <option value="doctor" {{ 'selected' if form.get('role')=='doctor' }}>Doctor</option>
         </select>
-        <div id="patient-fields" class="row">
-          <div><label for="dob">Date of birth</label><input id="dob" name="dob" type="date" value="{{ form.get('dob','') }}"></div>
-          <div><label for="gender">Gender</label>
-            <select id="gender" name="gender"><option value="">Prefer not to say</option>
-              {% for gdr in ['Male','Female','Other'] %}<option {{ 'selected' if form.get('gender')==gdr }}>{{ gdr }}</option>{% endfor %}
-            </select></div>
-        </div>
-        <div id="clin-fields" style="display:none">
-          <label for="specialty">Specialty</label><input id="specialty" name="specialty" placeholder="e.g. Nephrology">
-        </div>
         <label for="password">Password</label>
         <input id="password" name="password" type="password" required autocomplete="new-password" placeholder="8+ characters, a letter and a number">
         <div class="pw-meter"><span id="pwbar"></span></div>
@@ -54,9 +43,6 @@
 {% endblock %}
 {% block scripts %}
 <script>
-const role = document.getElementById('role'), pf = document.getElementById('patient-fields'), cf = document.getElementById('clin-fields');
-function roleFields(){ pf.style.display = role.value==='patient' ? 'flex' : 'none'; cf.style.display = role.value==='clinician' ? 'block' : 'none'; }
-role.onchange = roleFields; roleFields();
 const pw = document.getElementById('password'), cf2 = document.getElementById('confirm');
 pw.oninput = () => {
   const v = pw.value; let s = 0;
