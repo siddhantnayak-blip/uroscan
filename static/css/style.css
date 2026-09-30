@@ -171,3 +171,15 @@ footer { border-top: 1px solid var(--line); padding: 18px 0; color: var(--muted)
   .nav, footer, .no-print, .btn { display: none !important; }
   body { background: #fff; } .card { box-shadow: none; }
 }
+
+/* ---- simple version additions ---- */
+.big-status { padding: 14px 16px; border-radius: 12px; font-weight: 700; font-size: 1.05rem; margin-bottom: 12px; }
+.big-status.ok { background: var(--ok-soft); color: var(--ok); border: 1px solid #bfe5cb; }
+.big-status.bad { background: var(--warn-soft); color: var(--warn); border: 1px solid #f4dcb0; }
+table.simple td, table.simple th { padding: 9px 8px; }
+table.simple tr:last-child td { border-bottom: 0; }
+.dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 10px; vertical-align: -2px;
+  border: 1px solid rgba(0,0,0,.15); }
+.note { border-bottom: 1px solid var(--line); padding: 8px 0; }
+.note:last-child { border-bottom: 0; }
+.dropzone { display: block; }
