@@ -47,6 +47,14 @@ except Exception as e:
 
 
 # ---------------------------------------------------------------- helpers
+# The database server runs on UTC; show every date in Indian time (IST = UTC + 5:30)
+TZ_OFFSET = timedelta(minutes=int(os.environ.get("TZ_OFFSET_MINUTES", 330)))
+
+
+def local(value):
+    return value + TZ_OFFSET
+
+
 def normal_range(analyte):
     """Text like 'Negative' or '5.0 - 8.0' built from the chart levels that count as normal."""
     _, mn, mx, _ = ANALYTE_INFO[analyte]
@@ -89,7 +97,7 @@ def load_user():
 def template_values():
     if "csrf_token" not in session:
         session["csrf_token"] = secrets.token_hex(16)
-    return dict(csrf_token=session["csrf_token"], user=g.get("user"), ai_on=ai.ai_available(), now=datetime.now())
+    return dict(csrf_token=session["csrf_token"], user=g.get("user"), ai_on=ai.ai_available(), now=datetime.utcnow())
 
 
 def login_required(role=None):
@@ -409,7 +417,7 @@ def graph_data(pid):
     get_db().commit()
     normal = [i for i, (_, v, _) in enumerate(CHART[test]) if ANALYTE_INFO[test][1] <= v <= ANALYTE_INFO[test][2]]
     return jsonify(levels=[l for l, _, _ in CHART[test]], normal=[min(normal), max(normal)],
-                   points=[{"date": r["created_at"].strftime("%d %b"), "y": r["level_index"], "label": r["level_label"],
+                   points=[{"date": local(r["created_at"]).strftime("%d %b"), "y": r["level_index"], "label": r["level_label"],
                             "status": r["status"], "id": r["report_id"]} for r in rows])
 
 
@@ -429,7 +437,7 @@ def summary_data(pid):
     latest = query("SELECT t.status, COUNT(*) AS n FROM test_result t WHERE t.report_id = "
                    "(SELECT report_id FROM test_report WHERE patient_id=%s ORDER BY created_at DESC, report_id DESC LIMIT 1) "
                    "GROUP BY t.status", (pid,))
-    return jsonify(scans=[{"label": r["created_at"].strftime("%d %b") + f" #{r['report_id']}", "normal": int(r["normal"] or 0),
+    return jsonify(scans=[{"label": local(r["created_at"]).strftime("%d %b") + f" #{r['report_id']}", "normal": int(r["normal"] or 0),
                            "trace": int(r["trace"] or 0), "flagged": int(r["flagged"] or 0)} for r in per_scan],
                    latest={r["status"]: int(r["n"]) for r in latest})
 
@@ -471,7 +479,7 @@ def api_chat():
     rows = query("SELECT r.created_at, a.name, t.level_label, t.status FROM test_report r "
                  "JOIN test_result t ON t.report_id = r.report_id JOIN analyte a ON a.analyte_id = t.analyte_id "
                  "WHERE r.patient_id=%s ORDER BY r.created_at, a.pad_order", (pid,))
-    history = [(r["created_at"].strftime("%Y-%m-%d"), r["name"], r["level_label"], r["status"]) for r in rows]
+    history = [(local(r["created_at"]).strftime("%Y-%m-%d"), r["name"], r["level_label"], r["status"]) for r in rows]
     reports = patient_reports(pid)
     latest = report_results(reports[0]["report_id"]) if reports else []
     return jsonify(answer=ai.chat(question, history, latest))
@@ -542,7 +550,7 @@ def too_large(e):
 
 @app.template_filter("dt")
 def format_date(value, fmt="%d %b %Y, %I:%M %p"):
-    return value.strftime(fmt) if value else ""
+    return local(value).strftime(fmt) if value else ""
 
 
 if __name__ == "__main__":
