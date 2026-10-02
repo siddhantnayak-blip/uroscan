@@ -11,7 +11,7 @@
   <div class="card span2">
     <h2>🩺 All clinicians</h2>
     {% if rows %}
-    <div class="table-wrap visible"><table>
+    <div class="table-wrap visible"><table class="stack-sm">
       <thead><tr><th>Clinician</th><th>Patients</th><th class="hide-sm">Reviewed</th><th class="hide-sm">Last login</th><th>Status</th><th></th></tr></thead>
       <tbody>{% for c in rows %}
         <tr style="{{ 'opacity:.6' if not c.is_active }}">
@@ -21,13 +21,13 @@
           <td class="hide-sm">{{ c.reviewed }}</td>
           <td class="hide-sm small">{{ c.last_login|dt('%d %b, %I:%M %p') if c.last_login else 'never' }}</td>
           <td>{% if c.is_active %}<span class="badge Reviewed">Active</span>{% else %}<span class="badge off">Disabled</span>{% endif %}</td>
-          <td style="text-align:right;white-space:nowrap">
+          <td style="text-align:right;white-space:nowrap"><div class="row-actions">
             <a class="btn secondary small" href="{{ url_for('admin_assign', cid=c.user_id) }}">Assign</a>
             <span class="pop"><details><summary class="btn secondary small">•••</summary>
               <div class="panel">
                 <form method="post" action="{{ url_for('admin_reset_password', cid=c.user_id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <label style="margin-top:0">New password for {{ c.full_name.split()[0] }}</label>
+                  <label style="margin-top:0">New password for {{ c.full_name }}</label>
                   <input name="password" type="text" required minlength="8" placeholder="8+ chars, a letter and a number" autocomplete="off">
                   <button class="btn small block" style="margin-top:8px">Set password</button>
                 </form>
@@ -37,7 +37,7 @@
                   <button class="btn small block {{ 'danger' if c.is_active else 'sage' }}">{{ 'Disable account' if c.is_active else 'Enable account' }}</button>
                 </form>
               </div></details></span>
-          </td></tr>
+          </div></td></tr>
       {% endfor %}</tbody>
     </table></div>
     {% else %}
@@ -75,5 +75,6 @@ function genPw() {
 // close other "•••" menus when one opens
 document.querySelectorAll('.pop details').forEach(d => d.addEventListener('toggle', () => {
   if (d.open) document.querySelectorAll('.pop details').forEach(o => { if (o !== d) o.open = false; }); }));
+document.addEventListener('click', e => document.querySelectorAll('.pop details[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
 </script>
 {% endblock %}
