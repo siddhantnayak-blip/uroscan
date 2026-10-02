@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Assign patients{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><p class="eyebrow"><a href="{{ url_for('admin_clinicians') }}">← Clinicians</a></p>
+    <h1 class="curve-head">Patients for {{ c.full_name }}</h1>
+    <p class="muted" style="margin:4px 0 0">Tick the patients this clinician looks after. They'll see them under "My patients".</p></div>
+</div>
+
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if patients %}
+  <div class="page-head" style="margin-bottom:12px">
+    <input id="search" placeholder="🔍 Search patients" style="max-width:280px">
+    <span class="small muted"><b id="count">0</b> selected</span>
+  </div>
+  <div class="assign-list" id="list">
+    {% for p in patients %}
+    <label data-search="{{ (p.full_name ~ ' ' ~ p.email)|lower }}">
+      <input type="checkbox" name="patients" value="{{ p.user_id }}" {{ 'checked' if p.assigned }}>
+      <span class="avatar">{{ p.full_name[:1]|upper }}</span>
+      <span style="flex:1"><b>{{ p.full_name }}</b><br><span class="tiny muted">{{ p.email }} · {{ p.age ~ ' y' if p.age is not none else 'age —' }} · {{ p.gender or '—' }}</span></span>
+      <span class="tiny muted hide-sm">{{ 'Now with: ' ~ p.clinicians if p.clinicians else 'No clinician yet' }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <div style="display:flex;gap:8px;margin-top:16px"><button class="btn">Save assignments</button>
+    <a class="btn secondary" href="{{ url_for('admin_clinicians') }}">Cancel</a></div>
+  {% else %}
+  <div class="empty"><div class="big-ic">🧑</div><h2>No patients yet</h2><p class="muted">Patients appear here once they sign up.</p></div>
+  {% endif %}
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+const boxes = document.querySelectorAll('#list input'), count = document.getElementById('count');
+const recount = () => { if (count) count.textContent = [...boxes].filter(b => b.checked).length; };
+boxes.forEach(b => b.onchange = recount); recount();
+const s = document.getElementById('search');
+if (s) s.oninput = () => document.querySelectorAll('#list label').forEach(l => l.style.display = l.dataset.search.includes(s.value.toLowerCase()) ? '' : 'none');
+</script>
+{% endblock %}

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b1a21">
+  <meta name="theme-color" content="#f6f5f2">
   <title>{% block title %}UroScan{% endblock %} · UroScan</title>
   <script>
     // apply the saved light/dark theme before the page paints (no flash)
@@ -12,7 +12,7 @@
       document.documentElement.setAttribute('data-theme', t); } catch (e) {} })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo-mark.png') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-mark.png') }}">
@@ -28,16 +28,20 @@
       {% if user.role == 'patient' %}
         <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint=='dashboard' }}">Dashboard</a>
         <a href="{{ url_for('scan') }}" class="{{ 'active' if request.endpoint=='scan' }}">New scan</a>
+      {% elif user.role == 'clinician' %}
+        <a href="{{ url_for('patients') }}" class="{{ 'active' if request.endpoint in ('patients','patient_detail','report') }}">Patients</a>
       {% else %}
-        <a href="{{ url_for('patients') }}" class="{{ 'active' if request.endpoint in ('patients','patient_detail') }}">Patients</a>
+        <a href="{{ url_for('admin_home') }}" class="{{ 'active' if request.endpoint=='admin_home' }}">Overview</a>
+        <a href="{{ url_for('admin_clinicians') }}" class="{{ 'active' if request.endpoint in ('admin_clinicians','admin_assign') }}">Clinicians</a>
+        <a href="{{ url_for('admin_patients') }}" class="{{ 'active' if request.endpoint in ('admin_patients','patient_detail','report') }}">Patients</a>
       {% endif %}
       <a href="{{ url_for('profile') }}" class="{{ 'active' if request.endpoint=='profile' }}">Profile</a>
       <a href="{{ url_for('logout') }}" class="show-sm">Log out</a>
     </div>
     <div class="nav-right">
-      <span class="role-chip hide-sm">{{ 'Clinician' if user.role == 'clinician' else 'Patient' }}</span>
+      <span class="role-chip hide-sm">{{ user.role|capitalize }}</span>
       <button class="icon-btn" type="button" data-theme-toggle title="Light / dark mode" aria-label="Toggle dark mode">🌙</button>
-      <a href="{{ url_for('profile') }}" class="avatar" title="{{ user.full_name }}">{{ user.full_name[:1]|upper }}</a>
+      <a href="{{ url_for('profile') }}" class="avatar {{ {'clinician':'penna','admin':'sage'}.get(user.role, '') }}" title="{{ user.full_name }}">{{ user.full_name[:1]|upper }}</a>
       <a class="btn secondary small hide-sm" href="{{ url_for('logout') }}">Log out</a>
       <button class="icon-btn menu-btn" type="button" aria-label="Menu" onclick="document.getElementById('nav').classList.toggle('open')">☰</button>
     </div>

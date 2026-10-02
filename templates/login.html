@@ -5,13 +5,14 @@
 <div class="auth">
   {% include "_auth_art.html" %}
   <section class="auth-form">
+    {{ ui.wave_svg('mobile-wave') }}
     <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode">🌙</button>
     <div class="auth-card">
       <div class="mobile-logo">{{ ui.logo(url_for('index')) }}</div>
       <div class="card">
         <p class="eyebrow">Welcome back</p>
-        <h1>Log in to UroScan</h1>
-        <p class="muted small" style="margin-top:0">Good to see you again. Enter your details below.</p>
+        <h1>Log in to uroscan</h1>
+        <p class="muted small" style="margin-top:0">Patients, clinicians and the admin all log in here.</p>
         {{ ui.flashes() }}
         <form method="post" novalidate>
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

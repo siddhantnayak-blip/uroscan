@@ -5,21 +5,21 @@
 <section class="hero">
   <div>
     <p class="eyebrow">Smart urine strip reader</p>
-    <h1>Read your urine test <span>from one photo.</span></h1>
-    <p class="lead">Snap a 10-pad test strip. UroScan matches every pad to its colour chart, turns colours into values, explains the result in plain English and keeps your history in one place.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px">
+    <h1>Read your urine test <b>from one photo.</b></h1>
+    <p class="lead">Snap a 10-pad test strip. uroscan matches every pad to its colour chart, turns colours into values, explains the result in plain English and keeps your history in one calm place.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:24px">
       <a class="btn lg" href="{{ url_for('register') }}">Get started – it's free</a>
-      <a class="btn secondary lg" href="{{ url_for('login') }}">I have an account</a>
+      <a class="btn secondary lg" href="{{ url_for('login') }}">Log in</a>
     </div>
-    <p class="small muted" style="margin-top:14px">🔒 Passwords are hashed · 🩺 Clinicians can review and add notes</p>
+    <p class="small muted" style="margin-top:14px">🔒 Passwords are hashed · 🩺 Reports reviewed by clinicians</p>
   </div>
   <div class="hero-art">
-    <div class="hero-strip">{{ ui.strip_svg() }}</div>
-    <div class="analytes" style="grid-template-columns:1fr 1fr">
+    <img class="arcs" src="{{ url_for('static', filename='img/arcs.svg') }}" alt="">
+    <div class="analytes">
       <div class="analyte Normal"><div class="top"><span class="name">Glucose</span><span class="badge Normal">Normal</span></div>
-        <div class="value">Negative</div><div class="approx">≈ 0 mg/dL</div></div>
+        <div class="value-row"><span class="value">Negative</span><span class="approx">≈ 0 mg/dL</span></div></div>
       <div class="analyte High"><div class="top"><span class="name">Protein</span><span class="badge High">High</span></div>
-        <div class="value">100 mg/dL</div><div class="approx">≈ 96 mg/dL</div></div>
+        <div class="value-row"><span class="value">100 mg/dL</span><span class="approx">≈ 96</span></div></div>
     </div>
   </div>
 </section>
@@ -30,18 +30,18 @@
       <p class="muted small">Each pad is compared with every colour on the chart (K-nearest neighbours) and the closest match wins.</p></div>
     <div class="card feature"><div class="ic">✨</div><h3>AI summary &amp; chat</h3>
       <p class="muted small">A short, friendly explanation of every report, and a chat to ask questions about your results.</p></div>
-    <div class="card feature"><div class="ic">📈</div><h3>Trends over time</h3>
-      <p class="muted small">Compare with your previous scan and see simple graphs of how each test changes.</p></div>
+    <div class="card feature"><div class="ic">📈</div><h3>Reviewed by clinicians</h3>
+      <p class="muted small">Clinicians mark each report, set a retest date when needed and correct any misread pad.</p></div>
   </div>
 </section>
 
 <section class="card" style="margin-bottom:30px">
-  <h2>How it works</h2>
+  <h2 class="curve-head">How it works</h2>
   <div class="how">
     <div><div class="n">1</div><b>Dip the strip</b><p class="small muted">Wait about a minute for the colours to develop.</p></div>
     <div><div class="n">2</div><b>Take a photo</b><p class="small muted">Lay it on white paper and snap it with your phone.</p></div>
     <div><div class="n">3</div><b>Get your report</b><p class="small muted">10 results with values, status and an AI summary.</p></div>
-    <div><div class="n">4</div><b>Share with a clinician</b><p class="small muted">They review your reports and add notes.</p></div>
+    <div><div class="n">4</div><b>Clinician review</b><p class="small muted">Your clinician reviews it, adds notes and a retest date.</p></div>
   </div>
 </section>
 {% endblock %}

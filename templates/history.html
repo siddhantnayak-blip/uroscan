@@ -4,56 +4,62 @@
 {% block content %}
 <div class="page-head">
   <div style="display:flex;align-items:center;gap:14px">
-    <span class="avatar" style="width:56px;height:56px;font-size:1.3rem">{{ patient.full_name[:1]|upper }}</span>
-    <div><p class="eyebrow"><a href="{{ url_for('patients') }}">← All patients</a></p>
+    <span class="avatar" style="width:60px;height:60px;font-size:1.35rem">{{ patient.full_name[:1]|upper }}</span>
+    <div><p class="eyebrow"><a href="{{ url_for('patients') if user.role == 'clinician' else url_for('admin_patients') }}">← All patients</a></p>
       <h1 style="margin:0">{{ patient.full_name }}</h1>
-      <p class="muted" style="margin:2px 0 0">{{ age ~ ' years' if age is not none else 'Age not given' }} · {{ patient.gender or 'Gender not given' }} · {{ patient.email }}</p></div>
+      <p class="muted" style="margin:2px 0 0">{{ age ~ ' years' if age is not none else 'Age not given' }} · {{ patient.gender or 'Gender not given' }} · {{ patient.email }}</p>
+      <p class="small muted" style="margin:2px 0 0">Clinician{{ 's' if clinicians|length != 1 }}: {{ clinicians | map(attribute='full_name') | join(', ') or 'not assigned yet' }}</p></div>
   </div>
 </div>
 
 {% if not reports %}
-<div class="card empty"><div class="big-ic">🧪</div><h2>No scans yet</h2><p class="muted">This patient hasn't scanned a strip yet.</p></div>
+<div class="card empty tint-hudson"><div class="big-ic">🧪</div><h2>No scans yet</h2><p class="muted">This patient hasn't scanned a strip yet.</p></div>
 {% else %}
-{% set to_review = reports | selectattr('notes', 'equalto', 0) | list | length %}
-<div class="grid g4" style="margin-bottom:18px">
+{% set pending = reports | selectattr('review_status', 'equalto', 'Pending') | list | length %}
+<div class="grid g4 mb">
   <div class="card stat"><div class="ic">🧾</div><div><div class="num">{{ reports|length }}</div><div class="lbl">Reports</div></div></div>
-  <div class="card stat {{ 'alert' if to_review }}"><div class="ic">📝</div><div><div class="num">{{ to_review }}</div><div class="lbl">To review</div></div></div>
+  <div class="card stat {{ 'alert' if pending }}"><div class="ic">📝</div><div><div class="num">{{ pending }}</div><div class="lbl">To review</div></div></div>
   <div class="card stat {{ 'alert' if reports[0].abnormal_count }}"><div class="ic">🚩</div><div><div class="num">{{ reports[0].abnormal_count }}</div><div class="lbl">Flagged in latest</div></div></div>
-  <div class="card stat"><div class="ic">📅</div><div><div class="num" style="font-size:1.15rem">{{ reports[0].created_at|dt('%d %b') }}</div><div class="lbl">Last scan</div></div></div>
+  <div class="card stat"><div class="ic">📅</div><div><div class="num" style="font-size:1.2rem">{{ reports[0].created_at|dt('%d %b') }}</div><div class="lbl">Last scan</div></div></div>
 </div>
 
-<div class="card" style="margin-bottom:18px">
+<div class="card mb">
   <h2>🗂️ Reports</h2>
   <div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>Date</th><th>Result</th><th>Review</th><th></th></tr></thead>
+    <thead><tr><th>#</th><th>Date</th><th>Result</th><th>Review</th><th class="hide-sm">Notes</th><th></th></tr></thead>
     <tbody>{% for r in reports %}
       <tr><td>{{ r.report_id }}</td><td>{{ r.created_at|dt }}</td>
         <td>{% if r.abnormal_count %}<span class="badge High">{{ r.abnormal_count }} flagged</span>{% else %}<span class="badge Normal">All normal</span>{% endif %}</td>
-        <td>{% if r.notes %}<span class="small muted">✓ {{ r.notes }} note{{ 's' if r.notes != 1 }}</span>{% else %}<span class="badge review">Needs review</span>{% endif %}</td>
-        <td style="text-align:right"><a class="btn {{ 'secondary' if r.notes }} small" href="{{ url_for('report', report_id=r.report_id) }}">{{ 'View' if r.notes else 'Review' }}</a></td></tr>
+        <td>{{ ui.review_badge(r.review_status, r.follow_up_date, today) }}</td>
+        <td class="hide-sm">{{ r.notes or '—' }}</td>
+        <td style="text-align:right"><a class="btn small {{ 'secondary' if r.review_status != 'Pending' or user.role != 'clinician' }}" href="{{ url_for('report', report_id=r.report_id) }}">{{ 'Review' if r.review_status == 'Pending' and user.role == 'clinician' else 'View' }}</a></td></tr>
     {% endfor %}</tbody>
   </table></div>
 </div>
 
-<div class="card" style="margin-bottom:18px">
+<div class="card mb">
   <div class="page-head" style="margin-bottom:12px"><h2 style="margin:0">Latest results</h2>
     <a class="btn secondary small" href="{{ url_for('report', report_id=reports[0].report_id) }}">Open report →</a></div>
   {{ ui.status_banner(latest) }}
   <div class="analytes">{% for r in latest %}{{ ui.analyte_card(r) }}{% endfor %}</div>
 </div>
 
-<div class="grid g3" style="margin-bottom:18px">
-  <div class="card span2">
+{% set n_ok = latest | selectattr('status', 'equalto', 'Normal') | list | length %}
+<div class="grid g3 mb">
+  <div class="card tint-sky"><h2>🎯 Latest scan score</h2>
+    {{ ui.gauge_svg(n_ok / (latest|length or 1), ((100 * n_ok / (latest|length or 1))|round|int) ~ '%', n_ok ~ ' of ' ~ latest|length ~ ' tests normal') }}</div>
+  <div class="card span2"><h2>🗓️ Results at a glance</h2>
+    <p class="small muted" style="margin-top:0">One row per test, one dot per scan — newest on the right.</p>
+    {{ ui.test_grid(grid) }}</div>
+</div>
+
+<div class="grid g2">
+  <div class="card">
     <div class="page-head" style="margin-bottom:8px"><h2 style="margin:0">📈 Trend</h2>
       <select id="testSel" style="width:auto">{% for a in analytes %}<option>{{ a }}</option>{% endfor %}</select></div>
     <div class="chart-box"><canvas id="chart"></canvas></div>
   </div>
-  <div class="card"><h2>🍩 Latest scan</h2><div class="chart-box sm"><canvas id="donut"></canvas></div></div>
-</div>
-
-<div class="grid g2">
-  <div class="card"><h2>📊 Normal vs flagged</h2><div class="chart-box sm"><canvas id="bars"></canvas></div></div>
-  <div class="card chat-box">
+  <div class="card chat-box tint-penna">
     <h2 style="margin-bottom:6px">💬 Ask AI about this patient</h2>
     <div class="chat-log" id="chatLog"><div class="msg bot">Ask me about {{ patient.full_name.split()[0] }}'s results.</div></div>
     <div class="chips"><button type="button" data-q="Summarise this patient's trend">Summarise trend</button>

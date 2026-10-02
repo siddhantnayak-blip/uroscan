@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Patients{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><p class="eyebrow">Administrator</p><h1 class="curve-head">Patients</h1>
+    <p class="muted" style="margin:4px 0 0">Every patient, their scans and who looks after them. To change assignments, use <a href="{{ url_for('admin_clinicians') }}">Clinicians → Assign</a>.</p></div>
+  <input id="search" placeholder="🔍 Search by name or email" style="max-width:280px">
+</div>
+
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table id="ptable">
+    <thead><tr><th>Patient</th><th class="hide-sm">Age / Gender</th><th>Scans</th><th class="hide-sm">Last scan</th><th>Clinician</th><th></th></tr></thead>
+    <tbody>{% for p in rows %}
+      <tr data-search="{{ (p.full_name ~ ' ' ~ p.email)|lower }}">
+        <td><div style="display:flex;align-items:center;gap:10px"><span class="avatar">{{ p.full_name[:1]|upper }}</span>
+          <div><b>{{ p.full_name }}</b> {% if p.urgent %}<span class="badge Urgent">urgent</span>{% endif %}<div class="tiny muted">{{ p.email }}</div></div></div></td>
+        <td class="hide-sm">{{ p.age ~ ' y' if p.age is not none else '—' }} · {{ p.gender or '—' }}</td>
+        <td>{{ p.total_reports }}</td>
+        <td class="hide-sm">{{ p.last_scan|dt('%d %b %Y') if p.last_scan else '—' }}</td>
+        <td>{% if p.clinicians %}{{ p.clinicians }}{% else %}<span class="badge Trace">Not assigned</span>{% endif %}</td>
+        <td style="text-align:right"><a class="btn secondary small" href="{{ url_for('patient_detail', pid=p.patient_id) }}">View</a></td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <div class="empty"><div class="big-ic">🧑</div><h2>No patients yet</h2><p class="muted">Patients appear here once they sign up.</p></div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const search = document.getElementById('search');
+search.oninput = () => { const q = search.value.toLowerCase();
+  document.querySelectorAll('#ptable tbody tr').forEach(tr => tr.style.display = tr.dataset.search.includes(q) ? '' : 'none'); };
+</script>
+{% endblock %}

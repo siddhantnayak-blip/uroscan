@@ -3,7 +3,7 @@
 {% block title %}New scan{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><p class="eyebrow">New scan</p><h1>Read a urine strip</h1>
+  <div><p class="eyebrow">New scan</p><h1 class="curve-head">Read a urine strip</h1>
     <p class="muted" style="margin:4px 0 0">Take or upload a photo of your strip. We'll read all 10 pads in a few seconds.</p></div>
 </div>
 
@@ -43,7 +43,7 @@
 
 <div class="overlay" id="overlay" role="status" aria-live="polite">
   <div class="box">
-    <div class="scan-anim">{{ ui.strip_svg() }}<span class="beam"></span></div>
+    <div class="scan-dots"><i></i><i></i><i></i><i></i><i></i></div>
     <h2 style="margin:0 0 14px">Reading your strip…</h2>
     <ul class="progress-steps" id="progress">
       <li><span class="st"></span>Finding the 10 pads</li>

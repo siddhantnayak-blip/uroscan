@@ -14,8 +14,8 @@
 <div class="page-head no-print">
   <div>
     <p class="eyebrow"><a href="{{ url_for('dashboard') if user.role == 'patient' else url_for('patient_detail', pid=rep.patient_id) }}">← Back</a></p>
-    <h1>Report #{{ rep.report_id }}</h1>
-    <p class="muted" style="margin:4px 0 0">{{ rep.created_at|dt }}{% if user.role == 'clinician' %} · {{ rep.patient_name }}{% endif %}</p>
+    <h1 class="curve-head">Report #{{ rep.report_id }}</h1>
+    <p class="muted" style="margin:4px 0 0">{{ rep.created_at|dt }}{% if user.role != 'patient' %} · {{ rep.patient_name }}{% endif %} · {{ ui.review_badge(rep.review_status, rep.follow_up_date, today) }}</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn secondary" type="button" onclick="window.print()">🖨️ Print / PDF</button>
@@ -30,7 +30,8 @@
     <div><span>Gender</span><b>{{ rep.gender or '—' }}</b></div>
     <div><span>Report ID</span><b>#{{ rep.report_id }}</b></div>
     <div><span>Date</span><b>{{ rep.created_at|dt('%d %b %Y, %I:%M %p') }}</b></div>
-    <div><span>Reviewed by</span><b>{{ notes | map(attribute='full_name') | unique | join(', ') or 'Not yet reviewed' }}</b></div>
+    <div><span>Review</span><b>{{ rep.review_status }}{% if rep.reviewer %} · {{ rep.reviewer }}{% endif %}</b></div>
+    {% if rep.follow_up_date and rep.review_status in ('Follow-up', 'Urgent') %}<div><span>Retest by</span><b class="{{ 'overdue' if rep.follow_up_date < today }}">{{ rep.follow_up_date.strftime('%d %b %Y') }}</b></div>{% endif %}
   </div>
 </div>
 
@@ -39,15 +40,15 @@
 <div class="card" style="margin-bottom:18px">
   <div class="page-head" style="margin-bottom:12px">
     <div><h2 style="margin:0">Results</h2>
-      <p class="small muted" style="margin:2px 0 0">The ringed colour is the closest match on each test's colour chart{% if prev %} · arrows compare with the scan on {{ prev.created_at|dt('%d %b') }}{% endif %}.</p></div>
+      <p class="small muted" style="margin:2px 0 0">The ringed colour is the closest match on each test's colour chart{% if prev %} · compared with the scan on {{ prev.created_at|dt('%d %b') }}{% endif %}{% if user.role == 'clinician' %} · use "Correct this reading" if a pad was misread{% endif %}.</p></div>
   </div>
-  <div class="analytes">{% for r in results %}{{ ui.analyte_card(r) }}{% endfor %}</div>
+  <div class="analytes">{% for r in results %}{{ ui.analyte_card(r, rep.report_id if user.role == 'clinician' else None, csrf_token) }}{% endfor %}</div>
 </div>
 
 <div class="grid g3" style="margin-bottom:18px">
-  <div class="card span2">
+  <div class="card span2 tint-hudson">
     <h2>✨ AI summary</h2>
-    <div class="summary">{{ rep.ai_summary or 'Summary not available.' }}</div>
+    <div class="summary" style="background:rgba(255,255,255,.55)">{{ rep.ai_summary or 'Summary not available.' }}</div>
   </div>
   <div class="card">
     <h2>📷 Strip photo</h2>
@@ -55,22 +56,33 @@
   </div>
 </div>
 
+{% if user.role == 'clinician' %}
+<div class="card tint-sage no-print" style="margin-bottom:18px">
+  <h2>🩺 Review this report</h2>
+  <form method="post" action="{{ url_for('review_report', report_id=rep.report_id) }}" class="review-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="full"><label>Status</label>
+      <div class="status-pick">{% for s in REVIEW_STATUSES %}
+        <input type="radio" name="review_status" id="st-{{ loop.index }}" value="{{ s }}" {{ 'checked' if (rep.review_status == s) or (rep.review_status == 'Pending' and s == 'Reviewed') }}>
+        <label for="st-{{ loop.index }}">{{ {'Pending':'⏳','Reviewed':'✅','Follow-up':'📅','Urgent':'🚨'}[s] }} {{ s }}</label>{% endfor %}</div></div>
+    <div><label for="follow_up_date">Retest by (for Follow-up / Urgent)</label>
+      <input type="date" id="follow_up_date" name="follow_up_date" min="{{ today.isoformat() }}" value="{{ rep.follow_up_date.isoformat() if rep.follow_up_date else '' }}"></div>
+    <div style="align-self:end"><p class="tiny muted" style="margin:0 0 14px">The patient sees the date as a reminder on their dashboard.</p></div>
+    <div class="full"><label for="note">Note for {{ rep.patient_name.split()[0] }} (optional)</label>
+      <textarea id="note" name="note" rows="3" placeholder="e.g. Protein is high – please repeat the test in 1 week and drink more water."></textarea></div>
+    <div class="full"><button class="btn" style="margin-top:12px">Save review</button></div>
+  </form>
+</div>
+{% endif %}
+
 <div class="card" style="margin-bottom:18px">
   <h2>🩺 Clinician notes</h2>
   {% for n in notes %}
-    <div class="note"><div class="who"><span class="avatar">{{ n.full_name[:1] }}</span><b>{{ n.full_name }}</b>
+    <div class="note"><div class="who"><span class="avatar penna">{{ n.full_name[:1] }}</span><b>{{ n.full_name }}</b>
       <span class="small muted">· {{ n.created_at|dt }}</span></div><div>{{ n.note }}</div></div>
   {% else %}
     <p class="muted small">No clinician notes yet.</p>
   {% endfor %}
-  {% if user.role == 'clinician' %}
-  <form method="post" action="{{ url_for('add_note', report_id=rep.report_id) }}" class="no-print" style="margin-top:12px">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <label for="note">Add a note for {{ rep.patient_name.split()[0] }}</label>
-    <textarea id="note" name="note" rows="3" required placeholder="e.g. Protein is high – please repeat the test in 1 week and drink more water."></textarea>
-    <button class="btn" style="margin-top:10px">Add note</button>
-  </form>
-  {% endif %}
 </div>
 
 {% if user.role == 'patient' %}

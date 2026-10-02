@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Clinicians{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><p class="eyebrow">Administrator</p><h1 class="curve-head">Clinicians</h1>
+    <p class="muted" style="margin:4px 0 0">Create logins for clinicians, reset passwords, disable accounts and assign patients.</p></div>
+</div>
+
+<div class="grid g3">
+  <div class="card span2">
+    <h2>🩺 All clinicians</h2>
+    {% if rows %}
+    <div class="table-wrap visible"><table>
+      <thead><tr><th>Clinician</th><th>Patients</th><th class="hide-sm">Reviewed</th><th class="hide-sm">Last login</th><th>Status</th><th></th></tr></thead>
+      <tbody>{% for c in rows %}
+        <tr style="{{ 'opacity:.6' if not c.is_active }}">
+          <td><div style="display:flex;align-items:center;gap:10px"><span class="avatar penna">{{ c.full_name[:1]|upper }}</span>
+            <div><b>{{ c.full_name }}</b><div class="tiny muted">{{ c.email }}</div></div></div></td>
+          <td>{{ c.patients }}</td>
+          <td class="hide-sm">{{ c.reviewed }}</td>
+          <td class="hide-sm small">{{ c.last_login|dt('%d %b, %I:%M %p') if c.last_login else 'never' }}</td>
+          <td>{% if c.is_active %}<span class="badge Reviewed">Active</span>{% else %}<span class="badge off">Disabled</span>{% endif %}</td>
+          <td style="text-align:right;white-space:nowrap">
+            <a class="btn secondary small" href="{{ url_for('admin_assign', cid=c.user_id) }}">Assign</a>
+            <span class="pop"><details><summary class="btn secondary small">•••</summary>
+              <div class="panel">
+                <form method="post" action="{{ url_for('admin_reset_password', cid=c.user_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <label style="margin-top:0">New password for {{ c.full_name.split()[0] }}</label>
+                  <input name="password" type="text" required minlength="8" placeholder="8+ chars, a letter and a number" autocomplete="off">
+                  <button class="btn small block" style="margin-top:8px">Set password</button>
+                </form>
+                <div class="divider" style="margin:12px 0">or</div>
+                <form method="post" action="{{ url_for('admin_toggle', cid=c.user_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="btn small block {{ 'danger' if c.is_active else 'sage' }}">{{ 'Disable account' if c.is_active else 'Enable account' }}</button>
+                </form>
+              </div></details></span>
+          </td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}
+    <div class="empty"><div class="big-ic">🩺</div><h2>No clinicians yet</h2><p class="muted">Add the first one with the form.</p></div>
+    {% endif %}
+  </div>
+
+  <div class="card tint-hudson" id="add">
+    <h2>＋ Add a clinician</h2>
+    <p class="small muted" style="margin-top:0">You choose the password. Give the email and password to the clinician so they can log in.</p>
+    <form method="post" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="full_name">Full name <span class="muted small" style="font-weight:500">· "Dr" is added automatically</span></label>
+      <input id="full_name" name="full_name" required placeholder="e.g. Asha Mehta" value="{{ form.get('full_name','') }}">
+      <label for="email">Email (their login)</label>
+      <input id="email" name="email" type="email" required placeholder="asha@clinic.com" value="{{ form.get('email','') }}">
+      <label for="password">Password</label>
+      <div class="pw-wrap">
+        <input id="password" name="password" type="text" required minlength="8" placeholder="8+ characters, a letter and a number" autocomplete="off">
+        <button type="button" class="pw-toggle" onclick="genPw()">Suggest</button>
+      </div>
+      <button class="btn block" style="margin-top:16px">Create clinician</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function genPw() {
+  const words = ['sage', 'penna', 'umbra', 'hudson', 'rubble', 'strip', 'scan', 'clinic'];
+  const w = words[Math.floor(Math.random() * words.length)];
+  const n = Math.floor(1000 + Math.random() * 9000);
+  document.getElementById('password').value = w.charAt(0).toUpperCase() + w.slice(1) + '@' + n;
+}
+// close other "•••" menus when one opens
+document.querySelectorAll('.pop details').forEach(d => d.addEventListener('toggle', () => {
+  if (d.open) document.querySelectorAll('.pop details').forEach(o => { if (o !== d) o.open = false; }); }));
+</script>
+{% endblock %}

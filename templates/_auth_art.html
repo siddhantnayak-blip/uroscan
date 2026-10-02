@@ -1,16 +1,14 @@
 {% import "_macros.html" as ui %}
 <aside class="auth-art">
-  <span class="bubble b1"></span><span class="bubble b2"></span>
-  <div>{{ ui.logo(url_for('index'), white=true) }}</div>
-  <div>
-    <h2>Your urine test,<br>read in seconds.</h2>
-    <p>Snap a photo of a 10-pad urine strip. UroScan matches every colour, explains the result in plain English and keeps your history safe.</p>
-    <div class="hero-strip">{{ ui.strip_svg() }}</div>
-    <ul class="auth-points">
-      <li><span class="ic">📷</span><span><b>Snap</b> — just a phone photo on white paper</span></li>
-      <li><span class="ic">🎨</span><span><b>Match</b> — KNN colour matching for all 10 tests</span></li>
-      <li><span class="ic">📈</span><span><b>Track</b> — reports, graphs and clinician notes</span></li>
-    </ul>
+  <div class="art" aria-hidden="true">
+    <span class="c c1"></span><span class="c c2"></span><span class="c c3"></span><span class="c c4"></span>
+    <img class="l l1" src="{{ url_for('static', filename='img/arcs-white.svg') }}" alt="">
+    <img class="l l2" src="{{ url_for('static', filename='img/arcs.svg') }}" alt="">
   </div>
-  <p class="tiny" style="opacity:.7;margin:0">A screening aid, not a medical diagnosis.</p>
+  <div class="content">{{ ui.logo(url_for('index')) }}</div>
+  <div class="content">
+    <h2>Your urine test,<br><b>read in seconds.</b></h2>
+    <p>Photograph a 10-pad test strip and get a clear, colour-matched report that your clinician can review.</p>
+  </div>
+  <p class="foot">A screening aid, not a medical diagnosis.</p>
 </aside>

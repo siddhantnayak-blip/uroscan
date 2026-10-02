@@ -3,21 +3,56 @@
 {% block title %}Patients{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><p class="eyebrow">Clinician dashboard</p><h1>Good to see you, {{ user.full_name }}</h1>
+  <div><p class="eyebrow">Clinician dashboard</p><h1 class="curve-head">Good to see you, {{ user.full_name }}</h1>
     <p class="muted" style="margin:4px 0 0">
-      {% if stats.to_review %}You have <b>{{ stats.to_review }} new report{{ 's' if stats.to_review != 1 }}</b> to review.{% else %}You're all caught up 🎉{% endif %}</p></div>
+      {% if stats.urgent %}<b>{{ stats.urgent }} urgent</b> · {% endif %}{% if stats.to_review %}{{ stats.to_review }} new report{{ 's' if stats.to_review != 1 }} to review{% else %}You're all caught up 🌿{% endif %}</p></div>
+  <div class="chip-tabs">
+    <a href="{{ url_for('patients') }}" class="{{ 'on' if not show_all }}">My patients</a>
+    <a href="{{ url_for('patients', all=1) }}" class="{{ 'on' if show_all }}">All patients</a>
+  </div>
 </div>
 
-<div class="grid g4" style="margin-bottom:18px">
-  <div class="card stat"><div class="ic">👥</div><div><div class="num">{{ stats.patients }}</div><div class="lbl">Patients</div></div></div>
-  <div class="card stat"><div class="ic">🧾</div><div><div class="num">{{ stats.reports }}</div><div class="lbl">Reports in total</div></div></div>
-  <div class="card stat {{ 'alert' if stats.to_review }}"><div class="ic">📝</div><div><div class="num">{{ stats.to_review }}</div><div class="lbl">New reports to review</div></div></div>
-  <div class="card stat {{ 'alert' if stats.flagged }}"><div class="ic">🚩</div><div><div class="num">{{ stats.flagged }}</div><div class="lbl">Patients with flagged results</div></div></div>
+<div class="grid g4 mb">
+  <div class="card stat"><div class="ic">👥</div><div><div class="num">{{ stats.patients }}</div><div class="lbl">My patients</div></div></div>
+  <div class="card stat"><div class="ic">📝</div><div><div class="num">{{ stats.to_review }}</div><div class="lbl">New reports to review</div></div></div>
+  <div class="card stat {{ 'alert' if stats.urgent }}"><div class="ic">🚨</div><div><div class="num">{{ stats.urgent }}</div><div class="lbl">Marked urgent</div></div></div>
+  <div class="card stat {{ 'alert' if stats.overdue }}"><div class="ic">⏰</div><div><div class="num">{{ stats.overdue }}</div><div class="lbl">Overdue retests</div></div></div>
+</div>
+
+<div class="grid g3 mb">
+<div class="card tint-mint">
+  <h2>🎯 Review progress</h2>
+  {{ ui.gauge_svg(stats.done / (stats.total or 1), ((100 * stats.done / (stats.total or 1))|round|int) ~ '%', stats.done ~ ' of ' ~ stats.total ~ ' reports reviewed') }}
+</div>
+<div class="card span2">
+  <div class="page-head" style="margin-bottom:12px">
+    <div><h2 style="margin:0">Worklist</h2><p class="small muted" style="margin:2px 0 0">Reports that need you{{ '' if show_all else ', for your patients' }}</p></div>
+    <div class="chip-tabs">
+      {% for key, label in [('open','All open'),('Pending','New'),('Urgent','Urgent'),('Follow-up','Follow-up'),('overdue','Overdue')] %}
+      <a href="{{ url_for('patients', status=key, all=1 if show_all else None) }}" class="{{ 'on' if focus == key }}">{{ label }}</a>{% endfor %}
+    </div>
+  </div>
+  {% if worklist %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Report</th><th>Patient</th><th class="hide-sm">Scanned</th><th>Result</th><th>Status</th><th></th></tr></thead>
+    <tbody>{% for r in worklist %}
+      <tr><td>#{{ r.report_id }}</td>
+        <td><a href="{{ url_for('patient_detail', pid=r.patient_id) }}">{{ r.full_name }}</a></td>
+        <td class="hide-sm">{{ r.created_at|dt('%d %b, %I:%M %p') }}</td>
+        <td>{% if r.abnormal_count %}<span class="badge High">{{ r.abnormal_count }} flagged</span>{% else %}<span class="badge Normal">All normal</span>{% endif %}</td>
+        <td>{{ ui.review_badge(r.review_status, r.follow_up_date, today) }}</td>
+        <td style="text-align:right"><a class="btn small {{ 'secondary' if r.review_status != 'Pending' }}" href="{{ url_for('report', report_id=r.report_id) }}">{{ 'Review' if r.review_status == 'Pending' else 'Open' }}</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="muted" style="margin:6px 0">Nothing here right now 🌿</p>
+  {% endif %}
+</div>
 </div>
 
 <div class="card">
   <div class="page-head" style="margin-bottom:12px">
-    <h2 style="margin:0">Patients</h2>
+    <h2 style="margin:0">{{ 'All patients' if show_all else 'My patients' }}</h2>
     <input id="search" placeholder="🔍 Search by name or email" style="max-width:280px">
   </div>
   {% if rows %}
@@ -26,20 +61,25 @@
     <tbody>{% for p in rows %}
       <tr data-search="{{ (p.full_name ~ ' ' ~ p.email)|lower }}">
         <td><div style="display:flex;align-items:center;gap:10px">
-          <span class="avatar" style="width:34px;height:34px;font-size:.8rem">{{ p.full_name[:1]|upper }}</span>
+          <span class="avatar">{{ p.full_name[:1]|upper }}</span>
           <div><b>{{ p.full_name }}</b> {% if (p.latest_flags or 0) > 0 %}<span class="red-dot" title="Latest scan has {{ p.latest_flags }} flagged result(s)"></span>{% endif %}
+            {% if show_all and p.mine %}<span class="badge Reviewed" style="margin-left:4px">mine</span>{% endif %}
             <div class="tiny muted">{{ p.email }}</div></div></div></td>
         <td class="hide-sm">{{ p.age ~ ' y' if p.age is not none else '—' }} · {{ p.gender or '—' }}</td>
         <td>{{ p.total_reports }}</td>
         <td class="hide-sm">{{ p.last_scan|dt('%d %b %Y') if p.last_scan else '—' }}</td>
-        <td>{% if p.to_review %}<span class="badge review">{{ p.to_review }} to review</span>
-            {% elif p.total_reports %}<span class="badge Normal">Reviewed</span>
+        <td>{% if p.urgent %}<span class="badge Urgent">{{ p.urgent }} urgent</span>
+            {% elif p.to_review %}<span class="badge Pending">{{ p.to_review }} new</span>
+            {% elif p.next_follow_up %}<span class="small {{ 'overdue' if p.next_follow_up < today else 'muted' }}">retest {{ p.next_follow_up.strftime('%d %b') }}</span>
+            {% elif p.total_reports %}<span class="badge Reviewed">Up to date</span>
             {% else %}<span class="muted small">No scans</span>{% endif %}</td>
         <td style="text-align:right"><a class="btn secondary small" href="{{ url_for('patient_detail', pid=p.patient_id) }}">Open</a></td>
       </tr>
     {% endfor %}</tbody>
   </table></div>
-  <p class="tiny muted" style="margin:10px 0 0"><span class="red-dot"></span>&nbsp; red dot = the patient's latest scan has flagged results</p>
+  <p class="tiny muted" style="margin:10px 0 0"><span class="red-dot"></span>&nbsp; = the patient's latest scan has flagged results</p>
+  {% elif not show_all %}
+  <div class="empty"><div class="big-ic">👥</div><h2>No patients assigned yet</h2><p class="muted">The administrator assigns patients to you. Meanwhile you can browse <a href="{{ url_for('patients', all=1) }}">all patients</a>.</p></div>
   {% else %}
   <div class="empty"><div class="big-ic">👥</div><h2>No patients yet</h2><p class="muted">Patients appear here once they sign up.</p></div>
   {% endif %}

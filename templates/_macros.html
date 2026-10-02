@@ -37,22 +37,32 @@
 </div>
 {%- endmacro %}
 
-{# One test shown as a box: name, status, value, the colour chart with the matched colour ringed, change vs last scan #}
-{% macro analyte_card(r) -%}
+{# One test shown as a box: status, value, colour chart with the matched colour ringed, change vs last scan.
+   When report_id + csrf are given (clinician), a small form lets them correct a misread pad. #}
+{% macro analyte_card(r, report_id=None, csrf=None) -%}
 <div class="analyte {{ r.status }}">
   <div class="top"><span class="name">{{ r.analyte }}</span><span class="badge {{ r.status }}">{{ r.status }}</span></div>
-  <div class="value">{{ r.level_label }}</div>
-  <div class="approx">{% if r.measured %}≈ {{ r.measured }}{% endif %}</div>
+  <div class="value-row"><span class="value">{{ r.level_label }}</span>{% if r.measured %}<span class="approx">≈ {{ r.measured }}</span>{% endif %}</div>
   <div class="chart-strip" title="Colour chart – the ringed colour is the closest match">
     {% for c in r.chart %}<i style="background:{{ c.hex }}" class="{{ 'sel' if loop.index0 == r.level_index }}" title="{{ c.label }}"></i>{% endfor %}
   </div>
   <div class="meta">
-    <span class="pad-read"><span class="dot" style="background:rgb({{ r.r }},{{ r.g }},{{ r.b }})" title="Colour read from your pad"></span>Normal: {{ r.normal }}</span>
+    <div class="pad-read"><span class="dot" style="background:rgb({{ r.r }},{{ r.g }},{{ r.b }})" title="Colour read from the pad"></span>Normal range: <b>{{ r.normal }}</b></div>
     {% if r.change %}
       {% set cls = 'same' if r.change == 'same' else ('down' if r.status == 'Normal' else 'up') %}
-      <span class="change {{ cls }}" title="Previous scan: {{ r.prev }}">{% if r.change == 'same' %}= no change{% else %}{{ '↑' if r.change == 'up' else '↓' }} from {{ r.prev }}{% endif %}</span>
+      <div class="change {{ cls }}">{% if r.change == 'same' %}= Same as last scan{% else %}{{ '↑' if r.change == 'up' else '↓' }} Was {{ r.prev }} last scan{% endif %}</div>
     {% endif %}
+    {% if r.original_label %}<div class="corrected">✎ Corrected by {{ r.corrected_by_name or 'a clinician' }} · camera read {{ r.original_label }}</div>{% endif %}
   </div>
+  {% if report_id and csrf %}
+  <details class="no-print"><summary>✎ Correct this reading</summary>
+    <form method="post" action="{{ url_for('correct_reading', report_id=report_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="analyte" value="{{ r.analyte }}">
+      <select name="level_index">{% for c in r.chart %}<option value="{{ loop.index0 }}" {{ 'selected' if loop.index0 == r.level_index }}>{{ c.label }}</option>{% endfor %}</select>
+      <button class="btn small">Save</button>
+    </form>
+  </details>
+  {% endif %}
 </div>
 {%- endmacro %}
 
@@ -62,7 +72,46 @@
 <div class="banner bad"><span class="big">⚠️</span><div><b>{{ flagged|length }} of {{ results|length }} tests need attention</b><br>
   <span class="small">{{ flagged | map(attribute='analyte') | join(', ') }} — please discuss with a clinician.</span></div></div>
 {% else %}
-<div class="banner ok"><span class="big">✅</span><div><b>All {{ results|length }} tests look normal</b><br>
+<div class="banner ok"><span class="big">🌿</span><div><b>All {{ results|length }} tests look normal</b><br>
   <span class="small">Every pad matched a colour inside the normal range.</span></div></div>
 {% endif %}
+{%- endmacro %}
+
+{# One row per test; a dot per scan (oldest -> newest), coloured by status; latest value on the right #}
+{% macro test_grid(grid) -%}
+{% if grid and grid.scans %}
+<div class="dots">
+  {% for row in grid.rows %}{% set last = row.cells[-1] %}
+  <div class="drow"><span class="dname">{{ row.analyte }}</span>
+    <div class="track">{% for c in row.cells %}{% if c %}<a class="{{ c.status }}{{ ' last' if loop.last }}" href="{{ url_for('report', report_id=c.report_id) }}" title="{{ grid.scans[loop.index0].date.strftime('%d %b') }} · {{ c.level_label }} ({{ c.status }})"></a>{% else %}<span></span>{% endif %}{% endfor %}</div>
+    <span class="now">{% if last %}<span class="badge {{ last.status }}">{{ last.level_label }}</span>{% endif %}</span></div>
+  {% endfor %}
+  <div class="dates"><span></span><div><span>{{ grid.scans[0].date.strftime('%d %b') }}</span>{% if grid.scans|length > 1 %}<span>{{ grid.scans[-1].date.strftime('%d %b') }}</span>{% endif %}</div><span class="pad">latest</span></div>
+</div>
+<div class="legend"><span><i style="background:var(--ok-fill)"></i>Normal</span><span><i style="background:var(--warn-fill)"></i>Trace</span><span><i style="background:var(--bad-fill)"></i>High / Low</span><span>Tap a dot to open that scan</span></div>
+{% endif %}
+{%- endmacro %}
+
+{# Half-circle gauge of rounded bars, e.g. gauge_svg(0.8, '80%', '8 of 10 tests normal') #}
+{% macro gauge_svg(value, big, small, lo='0', hi='100') -%}
+<div class="gauge">
+  <svg viewBox="0 0 300 168" aria-hidden="true">
+    {% for b in gauge(value) %}<rect x="143" y="10" width="14" height="44" rx="7" transform="rotate({{ b.angle }} 150 150)"{% if b.on %} fill="{{ b.color }}"{% else %} class="off"{% endif %}/>{% endfor %}
+  </svg>
+  <div class="read"><b>{{ big }}</b><span>{{ small }}</span></div>
+</div>
+<div class="ends"><span>{{ lo }}</span><span>{{ hi }}</span></div>
+{%- endmacro %}
+
+{% macro review_badge(status, follow=None, today=None) -%}
+<span class="badge {{ status }}">{{ status }}</span>{% if follow and status in ('Follow-up', 'Urgent') %}
+<span class="small {{ 'overdue' if today and follow < today else 'muted' }}">· {{ 'overdue since' if today and follow < today else 'retest by' }} {{ follow.strftime('%d %b') }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro wave_svg(cls='waves') -%}
+<svg class="{{ cls }}" viewBox="0 0 600 400" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 140 C 140 80, 260 200, 400 140 S 540 90, 600 120 L600 400 L0 400 Z" fill="#dacff4" opacity=".75"/>
+  <path d="M0 210 C 160 150, 280 270, 420 210 S 560 170, 600 190 L600 400 L0 400 Z" fill="#fadbc6" opacity=".8"/>
+  <path d="M0 290 C 170 240, 300 340, 440 290 S 570 260, 600 280 L600 400 L0 400 Z" fill="#c4e6d4" opacity=".9"/>
+</svg>
 {%- endmacro %}

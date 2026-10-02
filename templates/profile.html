@@ -7,7 +7,7 @@
 <div class="grid g3">
   <div class="card span2">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
-      <span class="avatar" style="width:60px;height:60px;font-size:1.4rem">{{ user.full_name[:1]|upper }}</span>
+      <span class="avatar {{ {'clinician':'penna','admin':'sage'}.get(user.role, '') }}" style="width:64px;height:64px;font-size:1.4rem">{{ user.full_name[:1]|upper }}</span>
       <div><h2 style="margin:0">{{ user.full_name }}</h2>
         <p class="muted small" style="margin:2px 0 0">{{ user.email }} · <span class="role-chip">{{ user.role|capitalize }}</span></p></div>
     </div>
@@ -42,17 +42,29 @@
         <div><span>First scan</span><b>{{ stats.first_scan|dt('%d %b %Y') if stats.first_scan else '—' }}</b></div>
         <div><span>Last scan</span><b>{{ stats.last_scan|dt('%d %b %Y') if stats.last_scan else '—' }}</b></div>
       </div>
+      {% elif user.role == 'clinician' %}
+      <div class="info-grid" style="grid-template-columns:1fr 1fr">
+        <div><span>My patients</span><b>{{ stats.patients }}</b></div>
+        <div><span>Reports reviewed</span><b>{{ stats.reviewed }}</b></div>
+        <div><span>Notes written</span><b>{{ stats.notes }}</b></div>
+      </div>
       {% else %}
       <div class="info-grid" style="grid-template-columns:1fr 1fr">
-        <div><span>Notes written</span><b>{{ stats.notes }}</b></div>
-        <div><span>Reports reviewed</span><b>{{ stats.reviewed }}</b></div>
+        <div><span>Role</span><b>Administrator</b></div>
+        <div><span>Admin actions</span><b>{{ stats.actions }}</b></div>
       </div>
       {% endif %}
     </div>
     <div class="card">
       <h2>Security</h2>
+      {% if user.role == 'patient' %}
       <p class="small muted">Want a new password? Use the reset link.</p>
       <a class="btn secondary block" href="{{ url_for('forgot') }}">Change password</a>
+      {% elif user.role == 'clinician' %}
+      <p class="small muted">Your password is set by the administrator. Ask them if you need a new one.</p>
+      {% else %}
+      <p class="small muted">The admin password comes from the ADMIN_PASSWORD setting on the server.</p>
+      {% endif %}
       <a class="btn secondary block" style="margin-top:8px" href="{{ url_for('logout') }}">Log out</a>
     </div>
   </div>
