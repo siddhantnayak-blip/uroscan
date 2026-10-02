@@ -7,14 +7,15 @@ colour chart with **KNN**, saves the report in **MySQL**, and shows a simple rep
 trend graphs. A clinician can pick a patient, open their reports and add notes.
 
 ## Features
-- **Login and sign-up** for two roles: patient and clinician. Passwords are hashed (with a strength meter and a "re-enter password" check), the app locks an email after 5 wrong tries for 15 minutes, and there's a forgot-password link.
+- **Three roles:** patients sign up themselves; the **admin** account comes from the `ADMIN_EMAIL` / `ADMIN_PASSWORD` settings; clinicians are created by the admin. Passwords are hashed, an email is locked for 15 minutes after 5 wrong tries, and disabled accounts can't log in.
+- **Admin:** overview (patients, clinicians, scans per day, urgent reports, recent activity), add clinicians with a password, reset a clinician's password, disable / enable accounts, assign patients to clinicians, view every patient. Every admin action is written to `audit_log` by triggers.
 - **Profile:** patients add their date of birth and gender; age and gender are shown on every report.
 - **Scan:** take or upload a photo, or try one of the 6 sample strips. A progress animation shows each step.
 - **Report:** each of the 10 tests in its own box with the value, approx number, normal range, status, the colour chart with the matched colour ringed, and the change since the previous scan (↑ / ↓ / =). It can be printed as a lab-style report.
 - **AI summary** of every report and an **"Ask" chat**, both using the Google Gemini API. If there's no key, the app uses simple built-in rules instead.
-- **Graphs:** a trend line for any test, a "normal vs flagged" bar chart per scan (GROUP BY) and a doughnut of the latest scan.
-- **Clinician:** a dashboard with counts of new reports to review and patients with flagged results, a red dot next to those patients, then a patient's reports ("Needs review" until a note is added) and a report page to add notes.
-- **Design:** teal theme, light / dark mode, phone-friendly layout with a sticky "New scan" button.
+- **Graphs:** a trend line for any test and a "results at a glance" grid (tests × scans, coloured by status, one JOIN query).
+- **Clinician:** "My patients" (assigned by the admin) and "All patients"; a worklist filtered by New / Urgent / Follow-up / Overdue; on a report: set the review status (Pending, Reviewed, Follow-up, Urgent), a retest date the patient sees as a reminder, a note, and **correct a misread pad** (the camera's original reading is kept).
+- **Design:** soft pastel palette (Frosted, Hudson, Penna, Country Rubble, sage, Umbra), light / dark mode, phone-friendly layout with a sticky "New scan" button.
 
 ## How the strip is read (`vision.py`)
 1. Find the coloured squares in the photo using OpenCV contours.
@@ -27,11 +28,11 @@ On 60 simulated strip photos, it found every strip and picked the exact chart le
 ## Database (`schema.sql`)
 | Concept | Where |
 |---|---|
-| Tables | `users`, `analyte`, `reference_color`, `test_report`, `test_result`, `clinician_note`, `login_attempt`, `password_reset` |
+| Tables | `users`, `analyte`, `reference_color`, `test_report`, `test_result`, `clinician_note`, `patient_clinician` (many-to-many), `audit_log`, `login_attempt`, `password_reset` |
 | Weak entity, composite key | `test_result (report_id, analyte_id)` |
 | Constraints | PRIMARY KEY, FOREIGN KEY (ON DELETE CASCADE), UNIQUE, CHECK |
 | Normalisation | 3NF/BCNF: test names and normal ranges are stored once in `analyte` |
-| Triggers | `trg_set_status` (Normal/Trace/High/Low), `trg_count_abnormal` |
+| Triggers | `trg_set_status`, `trg_count_abnormal`, `trg_status_on_correct`, audit triggers on `users` and `patient_clinician` |
 | View | `v_patient_summary` (the clinician's patient list: report counts, reports to review, latest flags) |
 | Stored procedure | `get_test_history(patient, test)` (the graph) |
 | Index | `idx_report_patient` |
@@ -53,7 +54,7 @@ On 60 simulated strip photos, it found every strip and picked the exact chart le
 ## Running it
 Hosted on **Render** (the Flask app) with **Aiven** (free MySQL).
 Settings are passed in as environment variables: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`,
-`SECRET_KEY`, `GEMINI_API_KEY`, `COOKIE_SECURE=1`.
+`SECRET_KEY`, `GEMINI_API_KEY`, `COOKIE_SECURE=1`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 
 To run it locally: `pip install -r requirements.txt`, set the same variables, then `python app.py`.
 

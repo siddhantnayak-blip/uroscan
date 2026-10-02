@@ -3,6 +3,7 @@ import os
 import ssl
 import logging
 import pymysql
+from werkzeug.security import generate_password_hash, check_password_hash
 from pymysql.cursors import DictCursor
 from flask import g
 
@@ -104,6 +105,65 @@ def upgrade_v2(cur, conn):
     conn.commit()
 
 
+def upgrade_v3(cur, conn):
+    """Admin role, disabled accounts, report review status / follow-up date, corrected readings."""
+    t = "SELECT COUNT(*) AS n FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s"
+    c = ("SELECT COUNT(*) AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() "
+         "AND TABLE_NAME = %s AND COLUMN_NAME = %s")
+    if not _exists(cur, t, ("users",)):
+        return
+    cur.execute("SELECT COLUMN_TYPE AS ct FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() "
+                "AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'")
+    if "admin" not in cur.fetchone()["ct"]:
+        cur.execute("ALTER TABLE users MODIFY role ENUM('patient','clinician','admin') NOT NULL DEFAULT 'patient'")
+    adds = [
+        ("users", "is_active", "ALTER TABLE users ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER role"),
+        ("test_report", "review_status", "ALTER TABLE test_report ADD COLUMN review_status "
+         "ENUM('Pending','Reviewed','Follow-up','Urgent') NOT NULL DEFAULT 'Pending'"),
+        ("test_report", "follow_up_date", "ALTER TABLE test_report ADD COLUMN follow_up_date DATE NULL"),
+        ("test_report", "reviewed_by", "ALTER TABLE test_report ADD COLUMN reviewed_by INT NULL, "
+         "ADD FOREIGN KEY (reviewed_by) REFERENCES users(user_id) ON DELETE SET NULL"),
+        ("test_report", "reviewed_at", "ALTER TABLE test_report ADD COLUMN reviewed_at DATETIME NULL"),
+        ("test_result", "original_label", "ALTER TABLE test_result ADD COLUMN original_label VARCHAR(30) NULL"),
+        ("test_result", "corrected_by", "ALTER TABLE test_result ADD COLUMN corrected_by INT NULL, "
+         "ADD FOREIGN KEY (corrected_by) REFERENCES users(user_id) ON DELETE SET NULL"),
+        ("test_result", "corrected_at", "ALTER TABLE test_result ADD COLUMN corrected_at DATETIME NULL"),
+    ]
+    for table, col, sql in adds:
+        if not _exists(cur, c, (table, col)):
+            cur.execute(sql)
+            if col == "review_status":   # reports that already have a clinician note count as reviewed
+                cur.execute("UPDATE test_report r SET review_status = 'Reviewed' WHERE EXISTS "
+                            "(SELECT 1 FROM clinician_note n WHERE n.report_id = r.report_id)")
+    # every clinician's name starts with "Dr"
+    cur.execute("UPDATE users SET full_name = CONCAT('Dr ', TRIM(full_name)) WHERE role = 'clinician' "
+                "AND full_name NOT LIKE 'Dr %%' AND full_name NOT LIKE 'Dr.%%'")
+    conn.commit()
+
+
+def seed_admin(cur, conn):
+    """The one admin account comes from the ADMIN_EMAIL / ADMIN_PASSWORD settings, never from sign-up."""
+    email = (os.environ.get("ADMIN_EMAIL") or "").strip().lower()
+    password = os.environ.get("ADMIN_PASSWORD") or ""
+    if not email or not password:
+        log.warning("ADMIN_EMAIL / ADMIN_PASSWORD not set - no admin account")
+        return
+    cur.execute("SET @actor_id = NULL")
+    cur.execute("SELECT user_id, role, password_hash FROM users WHERE email = %s", (email,))
+    row = cur.fetchone()
+    if row is None:
+        cur.execute("INSERT INTO users (full_name, email, password_hash, role) VALUES ('Administrator', %s, %s, 'admin')",
+                    (email, generate_password_hash(password)))
+        log.info("Admin account created")
+    elif row["role"] != "admin":
+        log.warning("ADMIN_EMAIL belongs to a %s account - pick another email for the admin", row["role"])
+    elif not check_password_hash(row["password_hash"], password):
+        cur.execute("UPDATE users SET password_hash = %s, is_active = 1 WHERE user_id = %s",
+                    (generate_password_hash(password), row["user_id"]))
+        log.info("Admin password updated from settings")
+    conn.commit()
+
+
 def init_db():
     """Create tables, view, triggers and procedure from schema.sql, then fill the colour chart."""
     conn = _connect()
@@ -131,6 +191,7 @@ def init_db():
         conn.commit()
 
     upgrade_v2(cur, conn)
+    upgrade_v3(cur, conn)
 
     path = os.path.join(os.path.dirname(__file__), "schema.sql")
     with open(path, encoding="utf-8") as fh:
@@ -148,7 +209,7 @@ def init_db():
             conn.rollback()
 
     cur.execute("SELECT COUNT(*) AS n FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()")
-    DB_FEATURES["triggers"] = cur.fetchone()["n"] >= 2
+    DB_FEATURES["triggers"] = cur.fetchone()["n"] >= 4
 
     # fill the analyte table and the colour chart the first time
     cur.execute("SELECT COUNT(*) AS n FROM analyte")
@@ -162,6 +223,7 @@ def init_db():
                 cur.execute("INSERT INTO reference_color (analyte_id, level_index, level_label, numeric_value, r, g, b) "
                             "VALUES (%s,%s,%s,%s,%s,%s,%s)", (aid, i, label, val, r, gg, b))
         conn.commit()
+    seed_admin(cur, conn)
     cur.execute("SELECT RELEASE_LOCK('uroscan_init')")
     cur.close()
     conn.close()
