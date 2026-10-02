@@ -460,3 +460,29 @@ footer.site { text-align: center; color: var(--muted); font-size: .8rem; padding
 .table-wrap.visible { overflow: visible; }
 .pop .panel { text-align: left; white-space: normal; }
 .pop .panel .divider { margin: 12px 0; }
+/* clinician row actions: "Assign" and "•••" side by side, same size */
+.row-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+.row-actions .pop, .row-actions .pop details { display: inline-block; vertical-align: middle; }
+.row-actions .btn.small { min-height: 36px; height: 36px; }
+.row-actions .pop summary.btn { width: 40px; padding: 0; letter-spacing: 1px; }
+.row-actions .pop details[open] > summary.btn { background: var(--bg-2); }
+@media (max-width: 760px) {
+  .row-actions .btn.small { min-height: 40px; height: 40px; }
+  .row-actions .pop summary.btn { width: 44px; }
+  .row-actions .pop .panel { width: min(280px, calc(100vw - 48px)); }
+}
+.grid > * { min-width: 0; }
+@media (max-width: 760px) {
+  /* clinician list on phones: two compact lines per clinician instead of a wide table */
+  table.stack-sm thead { display: none; }
+  table.stack-sm tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  table.stack-sm tr:last-child { border-bottom: 0; }
+  table.stack-sm td { padding: 0; border: 0; }
+  table.stack-sm td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  table.stack-sm td:nth-child(5) { grid-column: 2; grid-row: 1; text-align: right; }
+  table.stack-sm td:nth-child(2) { grid-column: 1; grid-row: 2; font-size: .86rem; color: var(--muted); padding-left: 52px; }
+  table.stack-sm td:nth-child(2)::before { content: "Patients: "; }
+  table.stack-sm td:nth-child(6) { grid-column: 2; grid-row: 2; }
+  table.stack-sm tbody tr:hover td { background: none; }
+}
+.card:has(.pop details[open]) { position: relative; z-index: 30; }
