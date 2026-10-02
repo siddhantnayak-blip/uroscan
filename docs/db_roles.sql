@@ -34,6 +34,32 @@ START TRANSACTION;
 INSERT INTO test_report (patient_id) VALUES (1);
 ROLLBACK;
 
+-- Many-to-many: which clinician looks after which patient
+SELECT c.full_name AS clinician, p.full_name AS patient, pc.assigned_at
+FROM patient_clinician pc
+JOIN users c ON c.user_id = pc.clinician_id
+JOIN users p ON p.user_id = pc.patient_id
+ORDER BY clinician, patient;
+
+-- Audit log written by triggers (who did what, and when)
+SELECT l.created_at, a.full_name AS done_by, l.action, l.details
+FROM audit_log l LEFT JOIN users a ON a.user_id = l.actor_id
+ORDER BY l.created_at DESC;
+
+-- Clinician worklist: reports still waiting, urgent first
+SELECT r.report_id, u.full_name, r.review_status, r.follow_up_date
+FROM test_report r JOIN users u ON u.user_id = r.patient_id
+WHERE r.review_status IN ('Pending', 'Urgent', 'Follow-up')
+ORDER BY FIELD(r.review_status, 'Urgent', 'Pending', 'Follow-up'), r.created_at DESC;
+
+-- Corrected readings (original camera value is kept)
+SELECT t.report_id, a.name, t.original_label AS camera_read, t.level_label AS corrected_to, c.full_name AS corrected_by
+FROM test_result t JOIN analyte a ON a.analyte_id = t.analyte_id JOIN users c ON c.user_id = t.corrected_by
+WHERE t.original_label IS NOT NULL;
+
+-- Users per role
+SELECT role, COUNT(*) AS users, SUM(is_active = 0) AS disabled FROM users GROUP BY role;
+
 -- GRANT / REVOKE demo: a read-only user for clinicians (change the password first)
 CREATE USER IF NOT EXISTS 'uro_clinician'@'%' IDENTIFIED BY 'ChangeMe_Clinician1';
 GRANT SELECT ON test_report TO 'uro_clinician'@'%';
