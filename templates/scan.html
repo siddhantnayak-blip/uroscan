@@ -13,23 +13,23 @@
 <div class="grid g3">
   <div class="card span2">
     <label class="dropzone" for="photo" id="drop">
-      <div id="dropText"><div class="cam">📷</div><b>Tap to take a photo or choose one</b><br>
+      <div id="dropText"><div class="cam">{{ ui.icon('camera') }}</div><b>Tap to take a photo or choose one</b><br>
         <span class="small muted">or drag a photo here · JPG / PNG · up to 12 MB</span></div>
       <img id="preview" alt="" style="display:none">
     </label>
     <input type="file" name="photo" id="photo" accept="image/*" capture="environment" hidden>
-    <button class="btn block lg" id="submitBtn" style="margin-top:14px" type="submit">🔍 Read my strip</button>
+    <button class="btn block lg" id="submitBtn" style="margin-top:14px" type="submit">{{ ui.icon('search') }} Read my strip</button>
   </div>
 
   <div class="stack">
     <div class="card">
       <h2>For a good photo</h2>
-      <ol class="steps small">
-        <li>Wait about 1 minute after dipping the strip</li>
-        <li>Lay it on plain <b>white</b> paper</li>
-        <li>First pad (the tip) on the <b>left</b></li>
-        <li>Good light, no flash, no shadow</li>
-      </ol>
+      <ul class="tips">
+        <li><span class="node">{{ ui.icon('clock') }}</span><span>Wait about <b>1 minute</b> after dipping the strip</span></li>
+        <li><span class="node">{{ ui.icon('image') }}</span><span>Lay it on plain <b>white</b> paper</span></li>
+        <li><span class="node">{{ ui.icon('arrow') }}</span><span>First pad, the tip, on the <b>left</b></span></li>
+        <li><span class="node">{{ ui.icon('sun') }}</span><span>Good light, no flash, no shadow</span></li>
+      </ul>
     </div>
     <div class="card">
       <h2>No strip? Try a sample</h2>
@@ -47,9 +47,9 @@
     <h2 style="margin:0 0 14px">Reading your strip…</h2>
     <ul class="progress-steps" id="progress">
       <li><span class="st"></span>Finding the 10 pads</li>
-      <li><span class="st"></span>Matching colours (KNN)</li>
-      <li><span class="st"></span>Saving to the database</li>
-      <li><span class="st"></span>Writing your AI summary</li>
+      <li><span class="st"></span>Matching each colour</li>
+      <li><span class="st"></span>Saving your report</li>
+      <li><span class="st"></span>Writing your summary</li>
     </ul>
   </div>
 </div>

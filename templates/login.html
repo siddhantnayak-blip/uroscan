@@ -6,13 +6,13 @@
   {% include "_auth_art.html" %}
   <section class="auth-form">
     {{ ui.wave_svg('mobile-wave') }}
-    <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode">🌙</button>
+    <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode"><span class="moon">{{ ui.icon('moon') }}</span><span class="sun">{{ ui.icon('sun') }}</span></button>
     <div class="auth-card">
       <div class="mobile-logo">{{ ui.logo(url_for('index')) }}</div>
       <div class="card">
         <p class="eyebrow">Welcome back</p>
         <h1>Log in to uroscan</h1>
-        <p class="muted small" style="margin-top:0">Patients, clinicians and the admin all log in here.</p>
+        <p class="muted small" style="margin-top:0">Sign in to see your results, reports and clinician notes.</p>
         {{ ui.flashes() }}
         <form method="post" novalidate>
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -25,7 +25,7 @@
           </div>
           <button class="btn block lg" type="submit">Log in</button>
         </form>
-        <div class="divider">New to UroScan?</div>
+        <div class="divider">New to uroscan?</div>
         <a class="btn secondary block" href="{{ url_for('register') }}">Create a free account</a>
       </div>
     </div>

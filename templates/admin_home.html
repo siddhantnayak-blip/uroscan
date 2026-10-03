@@ -4,37 +4,37 @@
 {% block content %}
 <div class="page-head">
   <div><p class="eyebrow">Administrator</p><h1 class="curve-head">Overview</h1>
-    <p class="muted" style="margin:4px 0 0">Manage clinicians, assign patients and keep an eye on the system.</p></div>
-  <a class="btn" href="{{ url_for('admin_clinicians') }}#add">＋ Add clinician</a>
+    <p class="muted" style="margin:4px 0 0">Your clinic at a glance: patients, clinicians and reports waiting for review.</p></div>
+  <a class="btn" href="{{ url_for('admin_clinicians') }}#add">{{ ui.icon('plus') }} Add clinician</a>
 </div>
 
 <div class="grid g4 mb">
-  <div class="card stat"><div class="ic">🧑</div><div><div class="num">{{ stats.patients }}</div><div class="lbl">Patients</div></div></div>
-  <div class="card stat"><div class="ic">🩺</div><div><div class="num">{{ stats.clinicians }}</div><div class="lbl">Active clinicians</div></div></div>
-  <div class="card stat"><div class="ic">📷</div><div><div class="num">{{ stats.week_scans }}</div><div class="lbl">Scans in last 7 days</div></div></div>
-  <div class="card stat {{ 'alert' if stats.urgent }}"><div class="ic">🚨</div><div><div class="num">{{ stats.urgent }}</div><div class="lbl">Urgent reports</div></div></div>
+  <div class="card stat"><div class="ic">{{ ui.icon('users') }}</div><div><div class="num">{{ stats.patients }}</div><div class="lbl">Patients</div></div></div>
+  <div class="card stat"><div class="ic">{{ ui.icon('stethoscope') }}</div><div><div class="num">{{ stats.clinicians }}</div><div class="lbl">Active clinicians</div></div></div>
+  <div class="card stat"><div class="ic">{{ ui.icon('camera') }}</div><div><div class="num">{{ stats.week_scans }}</div><div class="lbl">Scans in last 7 days</div></div></div>
+  <div class="card stat {{ 'alert' if stats.urgent }}"><div class="ic">{{ ui.icon('alert') }}</div><div><div class="num">{{ stats.urgent }}</div><div class="lbl">Urgent reports</div></div></div>
 </div>
 
 {% if stats.unassigned %}
-<div class="banner warn"><span class="big">👥</span><div><b>{{ stats.unassigned }} patient{{ 's' if stats.unassigned != 1 }} not assigned to any clinician</b><br>
-  <span class="small">Open <a href="{{ url_for('admin_patients') }}">Patients</a> to see who, then assign them from a clinician's row.</span></div></div>
+<div class="banner warn"><span class="big">{{ ui.icon('users') }}</span><div><b>{{ stats.unassigned }} patient{{ 's' if stats.unassigned != 1 }} not assigned to any clinician</b><br>
+  <span class="small">Go to <a href="{{ url_for('admin_patients') }}">Patients</a> to assign them one by one, or all at once at random.</span></div></div>
 {% endif %}
 
 <div class="grid g3 mb">
   <div class="card tint-mint">
-    <h2>🎯 Reports reviewed</h2>
+    <h2>{{ ui.icon('target') }} Reports reviewed</h2>
     {{ ui.gauge_svg((stats.reports - stats.pending) / (stats.reports or 1), ((100 * (stats.reports - stats.pending) / (stats.reports or 1))|round|int) ~ '%', (stats.reports - stats.pending) ~ ' of ' ~ stats.reports ~ ' reviewed by clinicians') }}
   </div>
   <div class="card span2">
-    <h2>📊 Scans per day</h2>
+    <h2>{{ ui.icon('chart') }} Scans per day</h2>
     <p class="small muted" style="margin-top:0">Last 14 days · {{ stats.pending }} report{{ 's' if stats.pending != 1 }} still waiting for review</p>
     <div class="chart-box sm"><canvas id="perDay"></canvas></div>
   </div>
 </div>
 <div class="grid g2">
   <div class="card">
-    <h2>🕑 Recent activity</h2>
-    <p class="small muted" style="margin-top:0">From the <code>audit_log</code> table (filled by triggers)</p>
+    <h2>{{ ui.icon('clock') }} Recent activity</h2>
+    <p class="small muted" style="margin-top:0">Latest changes to accounts and patient assignments</p>
     {% if activity %}
     <ul class="timeline">{% for a in activity %}
       <li><span class="when">{{ a.created_at|dt('%d %b, %I:%M %p') }}</span>
@@ -45,12 +45,12 @@
     {% else %}<p class="muted small">No admin actions yet.</p>{% endif %}
   </div>
   <div class="card tint-penna">
-    <h2>🧭 Quick actions</h2>
-    <p class="small muted" style="margin-top:0">Everything an admin does is recorded in the activity log.</p>
+    <h2>{{ ui.icon('compass') }} Quick actions</h2>
+    <p class="small muted" style="margin-top:0">Every change is saved in the activity log.</p>
     <div class="stack" style="gap:10px">
-      <a class="btn block" href="{{ url_for('admin_clinicians') }}#add">＋ Add a clinician</a>
+      <a class="btn block" href="{{ url_for('admin_clinicians') }}#add">{{ ui.icon('plus') }} Add a clinician</a>
       <a class="btn secondary block" href="{{ url_for('admin_clinicians') }}">Reset a password or disable an account</a>
-      <a class="btn secondary block" href="{{ url_for('admin_patients') }}">See all patients and who looks after them</a>
+      <a class="btn secondary block" href="{{ url_for('admin_patients') }}">Assign patients to clinicians</a>
     </div>
   </div>
 </div>
@@ -63,9 +63,9 @@ const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).
 let perDay;
 function drawPerDay() {
   if (perDay) perDay.destroy();
-  Chart.defaults.color = css('--muted'); Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+  Chart.defaults.color = css('--muted'); Chart.defaults.font.family = '"Plus Jakarta Sans", system-ui, sans-serif';
   perDay = new Chart(document.getElementById('perDay'), { type: 'bar',
-    data: { labels: days.map(d => d.label), datasets: [{ data: days.map(d => d.n), backgroundColor: ['#c4e6d4','#c3dcf3','#dacff4','#fadbc6','#f6cdd2','#f6e7b0','#c4e6d4','#c3dcf3','#dacff4','#fadbc6','#f6cdd2','#f6e7b0','#c4e6d4','#c3dcf3'], hoverBackgroundColor: '#7462b8', borderRadius: 10 }] },
+    data: { labels: days.map(d => d.label), datasets: [{ data: days.map(d => d.n), backgroundColor: days.map((d, i) => i === days.length - 1 ? css('--med') : css('--mint')), hoverBackgroundColor: css('--med'), borderRadius: 10 }] },
     options: { maintainAspectRatio: false, plugins: { legend: { display: false } },
       scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: css('--line') } } } } });
 }

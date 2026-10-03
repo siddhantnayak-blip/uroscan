@@ -4,35 +4,76 @@
 {% block content %}
 <div class="page-head">
   <div><p class="eyebrow">Administrator</p><h1 class="curve-head">Patients</h1>
-    <p class="muted" style="margin:4px 0 0">Every patient, their scans and who looks after them. To change assignments, use <a href="{{ url_for('admin_clinicians') }}">Clinicians → Assign</a>.</p></div>
-  <input id="search" placeholder="🔍 Search by name or email" style="max-width:280px">
+    <p class="muted" style="margin:4px 0 0">Everyone registered with your clinic, their scans and the clinicians who look after them.</p></div>
+  <form method="post" action="{{ url_for('admin_assign_random') }}" class="no-print"
+        onsubmit="return confirm('Give each patient without a clinician one clinician, picked at random?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="btn" {{ 'disabled' if not unassigned or not doctors }}>{{ ui.icon('shuffle') }} Assign randomly</button>
+  </form>
 </div>
 
+<div class="assign-strip mb">
+  <div class="seg"><b>{{ rows|length - unassigned }}</b><span>with a clinician</span></div>
+  <div class="bar" role="img" aria-label="{{ rows|length - unassigned }} of {{ rows|length }} patients have a clinician">
+    <i style="width:{{ (100 * (rows|length - unassigned) / (rows|length or 1))|round(1) }}%"></i></div>
+  <div class="seg right"><b>{{ unassigned }}</b><span>waiting for a clinician</span></div>
+</div>
+<p class="tiny muted" style="margin:-8px 0 18px">"Assign randomly" gives each waiting patient one clinician, always picking from the clinicians with the fewest patients so work stays balanced.</p>
+
 <div class="card">
+  <div class="page-head" style="margin-bottom:12px">
+    <h2 style="margin:0">{{ ui.icon('users') }} All patients</h2>
+    <div class="search-box">{{ ui.icon('search') }}<input id="search" type="search" placeholder="Search by name or email"></div>
+  </div>
   {% if rows %}
-  <div class="table-wrap"><table id="ptable">
-    <thead><tr><th>Patient</th><th class="hide-sm">Age / Gender</th><th>Scans</th><th class="hide-sm">Last scan</th><th>Clinician</th><th></th></tr></thead>
+  <div class="table-wrap visible"><table id="ptable" class="pat-table">
+    <thead><tr><th>Patient</th><th class="hide-sm">Age / Gender</th><th class="hide-sm">Scans</th><th class="hide-sm">Last scan</th><th>Clinician</th><th></th></tr></thead>
     <tbody>{% for p in rows %}
       <tr data-search="{{ (p.full_name ~ ' ' ~ p.email)|lower }}">
         <td><div style="display:flex;align-items:center;gap:10px"><span class="avatar">{{ p.full_name[:1]|upper }}</span>
           <div><b>{{ p.full_name }}</b> {% if p.urgent %}<span class="badge Urgent">urgent</span>{% endif %}<div class="tiny muted">{{ p.email }}</div></div></div></td>
         <td class="hide-sm">{{ p.age ~ ' y' if p.age is not none else '—' }} · {{ p.gender or '—' }}</td>
-        <td>{{ p.total_reports }}</td>
+        <td class="hide-sm">{{ p.total_reports }}</td>
         <td class="hide-sm">{{ p.last_scan|dt('%d %b %Y') if p.last_scan else '—' }}</td>
         <td>{% if p.clinicians %}{{ p.clinicians }}{% else %}<span class="badge Trace">Not assigned</span>{% endif %}</td>
-        <td style="text-align:right"><a class="btn secondary small" href="{{ url_for('patient_detail', pid=p.patient_id) }}">View</a></td>
+        <td style="text-align:right;white-space:nowrap"><div class="row-actions">
+          <span class="pop"><details><summary class="btn small {{ 'secondary' if p.clinicians }}">Assign</summary>
+            <div class="panel">
+              {% if doctors %}
+              <form method="post" action="{{ url_for('admin_assign_patient', pid=p.patient_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <label style="margin-top:0">Clinicians for {{ p.full_name }}</label>
+                <div class="pick-list">{% for d in doctors %}
+                  <label class="check"><input type="checkbox" name="clinicians" value="{{ d.user_id }}" {{ 'checked' if d.user_id in p.cids }}> {{ d.full_name }}</label>
+                {% endfor %}</div>
+                <button class="btn small block" style="margin-top:10px">Save</button>
+              </form>
+              <div class="divider" style="margin:12px 0">or</div>
+              <form method="post" action="{{ url_for('admin_assign_patient', pid=p.patient_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="random" value="1">
+                <button class="btn secondary small block">{{ ui.icon('shuffle') }} Pick a clinician at random</button>
+              </form>
+              {% else %}
+              <p class="small muted" style="margin:0">Add a clinician first on the <a href="{{ url_for('admin_clinicians') }}">Clinicians</a> page.</p>
+              {% endif %}
+            </div></details></span>
+          <a class="btn secondary small" href="{{ url_for('patient_detail', pid=p.patient_id) }}">View</a>
+        </div></td>
       </tr>
     {% endfor %}</tbody>
   </table></div>
   {% else %}
-  <div class="empty"><div class="big-ic">🧑</div><h2>No patients yet</h2><p class="muted">Patients appear here once they sign up.</p></div>
+  <div class="empty"><div class="big-ic">{{ ui.icon('users') }}</div><h2>No patients yet</h2><p class="muted">Patients appear here as soon as they create an account.</p></div>
   {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
 const search = document.getElementById('search');
-search.oninput = () => { const q = search.value.toLowerCase();
+if (search) search.oninput = () => { const q = search.value.toLowerCase();
   document.querySelectorAll('#ptable tbody tr').forEach(tr => tr.style.display = tr.dataset.search.includes(q) ? '' : 'none'); };
+document.querySelectorAll('.pop details').forEach(d => d.addEventListener('toggle', () => {
+  if (d.open) document.querySelectorAll('.pop details').forEach(o => { if (o !== d) o.open = false; }); }));
+document.addEventListener('click', e => document.querySelectorAll('.pop details[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
 </script>
 {% endblock %}

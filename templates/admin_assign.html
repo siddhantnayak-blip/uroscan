@@ -12,7 +12,7 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {% if patients %}
   <div class="page-head" style="margin-bottom:12px">
-    <input id="search" placeholder="🔍 Search patients" style="max-width:280px">
+    <div class="search-box">{{ ui.icon('search') }}<input id="search" type="search" placeholder="Search patients"></div>
     <span class="small muted"><b id="count">0</b> selected</span>
   </div>
   <div class="assign-list" id="list">
@@ -28,7 +28,7 @@
   <div style="display:flex;gap:8px;margin-top:16px"><button class="btn">Save assignments</button>
     <a class="btn secondary" href="{{ url_for('admin_clinicians') }}">Cancel</a></div>
   {% else %}
-  <div class="empty"><div class="big-ic">🧑</div><h2>No patients yet</h2><p class="muted">Patients appear here once they sign up.</p></div>
+  <div class="empty"><div class="big-ic">{{ ui.icon('users') }}</div><h2>No patients yet</h2><p class="muted">Patients appear here once they sign up.</p></div>
   {% endif %}
 </form>
 {% endblock %}

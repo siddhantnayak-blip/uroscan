@@ -5,7 +5,7 @@
 <div class="page-head">
   <div><p class="eyebrow">Clinician dashboard</p><h1 class="curve-head">Good to see you, {{ user.full_name }}</h1>
     <p class="muted" style="margin:4px 0 0">
-      {% if stats.urgent %}<b>{{ stats.urgent }} urgent</b> · {% endif %}{% if stats.to_review %}{{ stats.to_review }} new report{{ 's' if stats.to_review != 1 }} to review{% else %}You're all caught up 🌿{% endif %}</p></div>
+      {% if stats.urgent %}<b>{{ stats.urgent }} urgent</b> · {% endif %}{% if stats.to_review %}{{ stats.to_review }} new report{{ 's' if stats.to_review != 1 }} to review{% else %}You're all caught up.{% endif %}</p></div>
   <div class="chip-tabs">
     <a href="{{ url_for('patients') }}" class="{{ 'on' if not show_all }}">My patients</a>
     <a href="{{ url_for('patients', all=1) }}" class="{{ 'on' if show_all }}">All patients</a>
@@ -13,15 +13,15 @@
 </div>
 
 <div class="grid g4 mb">
-  <div class="card stat"><div class="ic">👥</div><div><div class="num">{{ stats.patients }}</div><div class="lbl">My patients</div></div></div>
-  <div class="card stat"><div class="ic">📝</div><div><div class="num">{{ stats.to_review }}</div><div class="lbl">New reports to review</div></div></div>
-  <div class="card stat {{ 'alert' if stats.urgent }}"><div class="ic">🚨</div><div><div class="num">{{ stats.urgent }}</div><div class="lbl">Marked urgent</div></div></div>
-  <div class="card stat {{ 'alert' if stats.overdue }}"><div class="ic">⏰</div><div><div class="num">{{ stats.overdue }}</div><div class="lbl">Overdue retests</div></div></div>
+  <div class="card stat"><div class="ic">{{ ui.icon('users') }}</div><div><div class="num">{{ stats.patients }}</div><div class="lbl">My patients</div></div></div>
+  <div class="card stat"><div class="ic">{{ ui.icon('file') }}</div><div><div class="num">{{ stats.to_review }}</div><div class="lbl">New reports to review</div></div></div>
+  <div class="card stat {{ 'alert' if stats.urgent }}"><div class="ic">{{ ui.icon('alert') }}</div><div><div class="num">{{ stats.urgent }}</div><div class="lbl">Marked urgent</div></div></div>
+  <div class="card stat {{ 'alert' if stats.overdue }}"><div class="ic">{{ ui.icon('clock') }}</div><div><div class="num">{{ stats.overdue }}</div><div class="lbl">Overdue retests</div></div></div>
 </div>
 
 <div class="grid g3 mb">
 <div class="card tint-mint">
-  <h2>🎯 Review progress</h2>
+  <h2>{{ ui.icon('target') }} Review progress</h2>
   {{ ui.gauge_svg(stats.done / (stats.total or 1), ((100 * stats.done / (stats.total or 1))|round|int) ~ '%', stats.done ~ ' of ' ~ stats.total ~ ' reports reviewed') }}
 </div>
 <div class="card span2">
@@ -45,7 +45,7 @@
     {% endfor %}</tbody>
   </table></div>
   {% else %}
-  <p class="muted" style="margin:6px 0">Nothing here right now 🌿</p>
+  <p class="muted" style="margin:6px 0">Nothing here right now.</p>
   {% endif %}
 </div>
 </div>
@@ -53,7 +53,7 @@
 <div class="card">
   <div class="page-head" style="margin-bottom:12px">
     <h2 style="margin:0">{{ 'All patients' if show_all else 'My patients' }}</h2>
-    <input id="search" placeholder="🔍 Search by name or email" style="max-width:280px">
+    <div class="search-box">{{ ui.icon('search') }}<input id="search" type="search" placeholder="Search by name or email"></div>
   </div>
   {% if rows %}
   <div class="table-wrap"><table id="ptable">
@@ -79,9 +79,9 @@
   </table></div>
   <p class="tiny muted" style="margin:10px 0 0"><span class="red-dot"></span>&nbsp; = the patient's latest scan has flagged results</p>
   {% elif not show_all %}
-  <div class="empty"><div class="big-ic">👥</div><h2>No patients assigned yet</h2><p class="muted">The administrator assigns patients to you. Meanwhile you can browse <a href="{{ url_for('patients', all=1) }}">all patients</a>.</p></div>
+  <div class="empty"><div class="big-ic">{{ ui.icon('users') }}</div><h2>No patients assigned yet</h2><p class="muted">Your clinic will assign patients to you. Meanwhile you can browse <a href="{{ url_for('patients', all=1) }}">all patients</a>.</p></div>
   {% else %}
-  <div class="empty"><div class="big-ic">👥</div><h2>No patients yet</h2><p class="muted">Patients appear here once they sign up.</p></div>
+  <div class="empty"><div class="big-ic">{{ ui.icon('users') }}</div><h2>No patients yet</h2><p class="muted">Patients appear here once they sign up.</p></div>
   {% endif %}
 </div>
 {% endblock %}

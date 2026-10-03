@@ -6,13 +6,13 @@
   {% include "_auth_art.html" %}
   <section class="auth-form">
     {{ ui.wave_svg('mobile-wave') }}
-    <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode">🌙</button>
+    <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode"><span class="moon">{{ ui.icon('moon') }}</span><span class="sun">{{ ui.icon('sun') }}</span></button>
     <div class="auth-card">
       <div class="mobile-logo">{{ ui.logo(url_for('index')) }}</div>
       <div class="card">
         <p class="eyebrow">Account help</p>
         <h1>Forgot your password?</h1>
-        <p class="muted small" style="margin-top:0">Patients: enter your email and we'll create a reset link (valid for 30 minutes). Clinicians: ask the administrator to set a new password.</p>
+        <p class="muted small" style="margin-top:0">Enter the email you signed up with to get a link for choosing a new password. The link works for 30 minutes. Healthcare staff can ask their clinic's administrator for a new password.</p>
         {{ ui.flashes() }}
         <form method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -22,7 +22,7 @@
         </form>
         {% if link %}
         <div class="flash warn" style="margin-top:16px;display:block">
-          <b>Demo mode:</b> email sending isn't set up, so here is your link:<br><a href="{{ link }}">Reset my password →</a>
+          <b>Your reset link is ready.</b><br><a href="{{ link }}">Choose a new password →</a>
         </div>
         {% endif %}
         <div class="divider">or</div>

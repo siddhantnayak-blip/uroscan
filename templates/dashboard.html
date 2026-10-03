@@ -8,12 +8,12 @@
     <h1 class="curve-head">Hi, {{ user.full_name.split()[0] }}</h1>
     <p class="muted" style="margin:4px 0 0">{% if latest %}Your latest scan was on {{ latest.created_at|dt }}.{% else %}Let's read your first strip.{% endif %}</p>
   </div>
-  <a class="btn lg hide-sm" href="{{ url_for('scan') }}">📷 New scan</a>
+  <a class="btn lg hide-sm" href="{{ url_for('scan') }}">{{ ui.icon('camera') }} New scan</a>
 </div>
 
 {% if follow_up %}
   {% set late = follow_up.follow_up_date < today %}
-  <div class="banner {{ 'bad' if late else 'info' }}"><span class="big">{{ '⏰' if late else '📅' }}</span><div>
+  <div class="banner {{ 'bad' if late else 'info' }}"><span class="big">{{ ui.icon('clock' if late else 'calendar') }}</span><div>
     <b>{{ 'Your retest is overdue' if late else 'Retest reminder' }}: please scan again by {{ follow_up.follow_up_date.strftime('%d %b %Y') }}</b><br>
     <span class="small">Requested by {{ follow_up.clinician or 'your clinician' }} on <a href="{{ url_for('report', report_id=follow_up.report_id) }}">report #{{ follow_up.report_id }}</a>{{ ' · marked urgent' if follow_up.review_status == 'Urgent' }}.</span></div></div>
 {% endif %}
@@ -24,18 +24,18 @@
 
 {% if not latest %}
 <div class="card empty tint-hudson">
-  <div class="big-ic">🧪</div>
+  <div class="big-ic">{{ ui.icon('flask') }}</div>
   <h2>No scans yet</h2>
   <p class="muted">Take a photo of a urine test strip, or try one of the sample strips.</p>
   <a class="btn lg" href="{{ url_for('scan') }}">Start your first scan</a>
 </div>
 {% else %}
 <div class="grid g4 mb">
-  <div class="card stat"><div class="ic">🧾</div><div><div class="num">{{ reports|length }}</div><div class="lbl">Total scans</div></div></div>
-  <div class="card stat {{ 'alert' if latest.abnormal_count }}"><div class="ic">{{ '⚠️' if latest.abnormal_count else '🌿' }}</div>
+  <div class="card stat"><div class="ic">{{ ui.icon('file') }}</div><div><div class="num">{{ reports|length }}</div><div class="lbl">Total scans</div></div></div>
+  <div class="card stat {{ 'alert' if latest.abnormal_count }}"><div class="ic">{{ ui.icon('alert' if latest.abnormal_count else 'check') }}</div>
     <div><div class="num">{{ latest.abnormal_count }}</div><div class="lbl">Flagged in latest</div></div></div>
-  <div class="card stat"><div class="ic">📅</div><div><div class="num" style="font-size:1.2rem">{{ latest.created_at|dt('%d %b') }}</div><div class="lbl">Last scan</div></div></div>
-  <div class="card stat"><div class="ic">🩺</div><div><div class="num" style="font-size:1.05rem">{{ ui.review_badge(latest.review_status) }}</div><div class="lbl">Clinician review</div></div></div>
+  <div class="card stat"><div class="ic">{{ ui.icon('calendar') }}</div><div><div class="num" style="font-size:1.2rem">{{ latest.created_at|dt('%d %b') }}</div><div class="lbl">Last scan</div></div></div>
+  <div class="card stat"><div class="ic">{{ ui.icon('stethoscope') }}</div><div><div class="num" style="font-size:1.05rem">{{ ui.review_badge(latest.review_status) }}</div><div class="lbl">Clinician review</div></div></div>
 </div>
 
 <div class="card mb">
@@ -52,7 +52,7 @@
 {% set n_trace = results | selectattr('status', 'equalto', 'Trace') | list | length %}
 <div class="grid g3 mb">
   <div class="card tint-sky">
-    <h2>🎯 Scan score</h2>
+    <h2>{{ ui.icon('target') }} Scan score</h2>
     <div class="mini-stats">
       <div><b>{{ n_ok }}</b><span><i style="background:var(--ok-fill)"></i>Normal</span></div>
       <div><b>{{ n_trace }}</b><span><i style="background:var(--warn-fill)"></i>Trace</span></div>
@@ -61,19 +61,19 @@
     {{ ui.gauge_svg(n_ok / (results|length or 1), ((100 * n_ok / (results|length or 1))|round|int) ~ '%', 'of tests in the normal range') }}
   </div>
   <div class="card span2 tint-hudson">
-    <h2>✨ AI summary</h2>
+    <h2>{{ ui.icon('file') }} Summary of your results</h2>
     <div class="summary" style="background:rgba(255,255,255,.6)">{{ latest.ai_summary or 'Summary not available.' }}</div>
   </div>
 </div>
 
 <div class="grid g2 mb">
   <div class="card">
-    <h2>🗓️ Your results at a glance</h2>
+    <h2>{{ ui.icon('list') }} Your results at a glance</h2>
     <p class="small muted" style="margin-top:0">One row per test, one dot per scan — newest on the right.</p>
     {{ ui.test_grid(grid) }}
   </div>
   <div class="card tint-mint">
-    <h2>🩺 Clinician notes</h2>
+    <h2>{{ ui.icon('stethoscope') }} Clinician notes</h2>
     {% for n in notes %}
       <div class="note"><div class="who"><span class="avatar penna">{{ n.full_name[:1] }}</span><b>{{ n.full_name }}</b>
         <span class="small muted">· {{ n.created_at|dt('%d %b') }} · <a href="{{ url_for('report', report_id=n.report_id) }}">report #{{ n.report_id }}</a></span></div>
@@ -87,15 +87,15 @@
 <div class="grid g2 mb">
   <div class="card">
     <div class="page-head" style="margin-bottom:8px">
-      <h2 style="margin:0">📈 Trend</h2>
+      <h2 style="margin:0">{{ ui.icon('chart') }} Trend</h2>
       <select id="testSel" style="width:auto">{% for a in analytes %}<option>{{ a }}</option>{% endfor %}</select>
     </div>
     <div class="chart-box"><canvas id="chart"></canvas></div>
-    <p class="tiny muted" style="margin:6px 0 0">Shaded band = normal range. Tap a point to open that report.</p>
+    <p class="tiny muted" style="margin:6px 0 0">The green band shows the normal range. Select a point to open that report.</p>
   </div>
   <div class="card chat-box tint-penna">
-    <h2 style="margin-bottom:6px">💬 Ask about your results</h2>
-    <div class="chat-log" id="chatLog"><div class="msg bot">Hi {{ user.full_name.split()[0] }}! Ask me anything about your results — e.g. "Why is my protein high?"</div></div>
+    <h2 style="margin-bottom:6px">{{ ui.icon('message') }} Ask about your results</h2>
+    <div class="chat-log" id="chatLog"><div class="msg bot">Hi {{ user.full_name.split()[0] }}. Ask anything about your results, for example "Why is my protein high?"</div></div>
     <div class="chips"><button type="button" data-q="Explain my latest results simply">Explain simply</button>
       <button type="button" data-q="What changed since my previous scan?">What changed?</button>
       <button type="button" data-q="What should I do next?">What next?</button></div>
@@ -104,7 +104,7 @@
 </div>
 
 <div class="card">
-  <h2>🗂️ All reports</h2>
+  <h2>{{ ui.icon('file') }} All reports</h2>
   <div class="table-wrap"><table>
     <thead><tr><th>#</th><th>Date</th><th>Result</th><th>Clinician review</th><th></th></tr></thead>
     <tbody>{% for r in reports %}
@@ -121,6 +121,6 @@
 {% if latest %}
 <script>const PID = {{ pid }}, CSRF = "{{ csrf_token }}";</script>
 <script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=6"></script>
 {% endif %}
 {% endblock %}

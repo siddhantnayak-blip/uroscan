@@ -6,13 +6,13 @@
   {% include "_auth_art.html" %}
   <section class="auth-form">
     {{ ui.wave_svg('mobile-wave') }}
-    <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode">🌙</button>
+    <button class="icon-btn auth-top" type="button" data-theme-toggle aria-label="Toggle dark mode"><span class="moon">{{ ui.icon('moon') }}</span><span class="sun">{{ ui.icon('sun') }}</span></button>
     <div class="auth-card">
       <div class="mobile-logo">{{ ui.logo(url_for('index')) }}</div>
       <div class="card">
-        <p class="eyebrow">Patient sign-up</p>
+        <p class="eyebrow">Get started</p>
         <h1>Create your account</h1>
-        <p class="muted small" style="margin-top:0">Already have one? <a href="{{ url_for('login') }}">Log in</a> · Clinicians get their login from the administrator.</p>
+        <p class="muted small" style="margin-top:0">Already have an account? <a href="{{ url_for('login') }}">Log in</a>. Healthcare staff receive their login from their clinic.</p>
         {{ ui.flashes() }}
         <form method="post" id="regform" novalidate>
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -58,7 +58,7 @@ function checkMatch() {
   if (!cf.value) { match.className = 'hint muted'; match.textContent = 'Re-enter the password exactly as above.'; return; }
   const same = cf.value === pw.value;
   match.className = 'hint ' + (same ? 'ok' : 'bad');
-  match.textContent = same ? '✓ Passwords match' : '✗ Passwords don\'t match yet';
+  match.textContent = same ? 'Passwords match' : 'Passwords don\'t match yet';
 }
 cf.oninput = checkMatch;
 document.getElementById('regform').onsubmit = e => {

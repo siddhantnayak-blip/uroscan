@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f6f5f2">
+  <meta name="theme-color" content="#f6f8f4">
   <title>{% block title %}UroScan{% endblock %} · UroScan</title>
   <script>
     // apply the saved light/dark theme before the page paints (no flash)
@@ -12,8 +12,8 @@
       document.documentElement.setAttribute('data-theme', t); } catch (e) {} })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=6">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo-mark.png') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-mark.png') }}">
   {% block head %}{% endblock %}
@@ -40,15 +40,15 @@
     </div>
     <div class="nav-right">
       <span class="role-chip hide-sm">{{ user.role|capitalize }}</span>
-      <button class="icon-btn" type="button" data-theme-toggle title="Light / dark mode" aria-label="Toggle dark mode">🌙</button>
+      <button class="icon-btn" type="button" data-theme-toggle title="Light / dark mode" aria-label="Toggle dark mode"><span class="moon">{{ ui.icon('moon') }}</span><span class="sun">{{ ui.icon('sun') }}</span></button>
       <a href="{{ url_for('profile') }}" class="avatar {{ {'clinician':'penna','admin':'sage'}.get(user.role, '') }}" title="{{ user.full_name }}">{{ user.full_name[:1]|upper }}</a>
       <a class="btn secondary small hide-sm" href="{{ url_for('logout') }}">Log out</a>
-      <button class="icon-btn menu-btn" type="button" aria-label="Menu" onclick="document.getElementById('nav').classList.toggle('open')">☰</button>
+      <button class="icon-btn menu-btn" type="button" aria-label="Menu" onclick="document.getElementById('nav').classList.toggle('open')">{{ ui.icon('menu') }}</button>
     </div>
     {% else %}
     <div class="nav-links"></div>
     <div class="nav-right">
-      <button class="icon-btn" type="button" data-theme-toggle title="Light / dark mode" aria-label="Toggle dark mode">🌙</button>
+      <button class="icon-btn" type="button" data-theme-toggle title="Light / dark mode" aria-label="Toggle dark mode"><span class="moon">{{ ui.icon('moon') }}</span><span class="sun">{{ ui.icon('sun') }}</span></button>
       <a class="btn secondary small" href="{{ url_for('login') }}">Log in</a>
       <a class="btn small hide-sm" href="{{ url_for('register') }}">Sign up</a>
     </div>
@@ -62,21 +62,17 @@
   </div>
 </main>
 {% if user and user.role == 'patient' and request.endpoint != 'scan' %}
-<div class="mobile-cta no-print"><a class="btn" href="{{ url_for('scan') }}">📷 New scan</a></div>
+<div class="mobile-cta no-print"><a class="btn" href="{{ url_for('scan') }}">{{ ui.icon('camera') }} New scan</a></div>
 {% endif %}
 <footer class="site">UroScan · A screening aid, not a medical diagnosis.</footer>
 {% endblock %}
 <script>
   // light / dark mode toggle
   document.querySelectorAll('[data-theme-toggle]').forEach(function (b) {
-    var paint = function () { b.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'; };
-    paint();
     b.addEventListener('click', function () {
       var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       try { localStorage.setItem('theme', next); } catch (e) {}
-      document.querySelectorAll('[data-theme-toggle]').forEach(function (x) {
-        x.textContent = next === 'dark' ? '☀️' : '🌙'; });
       document.dispatchEvent(new Event('themechange'));
     });
   });

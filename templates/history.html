@@ -13,18 +13,18 @@
 </div>
 
 {% if not reports %}
-<div class="card empty tint-hudson"><div class="big-ic">🧪</div><h2>No scans yet</h2><p class="muted">This patient hasn't scanned a strip yet.</p></div>
+<div class="card empty tint-hudson"><div class="big-ic">{{ ui.icon('flask') }}</div><h2>No scans yet</h2><p class="muted">This patient hasn't scanned a strip yet.</p></div>
 {% else %}
 {% set pending = reports | selectattr('review_status', 'equalto', 'Pending') | list | length %}
 <div class="grid g4 mb">
-  <div class="card stat"><div class="ic">🧾</div><div><div class="num">{{ reports|length }}</div><div class="lbl">Reports</div></div></div>
-  <div class="card stat {{ 'alert' if pending }}"><div class="ic">📝</div><div><div class="num">{{ pending }}</div><div class="lbl">To review</div></div></div>
-  <div class="card stat {{ 'alert' if reports[0].abnormal_count }}"><div class="ic">🚩</div><div><div class="num">{{ reports[0].abnormal_count }}</div><div class="lbl">Flagged in latest</div></div></div>
-  <div class="card stat"><div class="ic">📅</div><div><div class="num" style="font-size:1.2rem">{{ reports[0].created_at|dt('%d %b') }}</div><div class="lbl">Last scan</div></div></div>
+  <div class="card stat"><div class="ic">{{ ui.icon('file') }}</div><div><div class="num">{{ reports|length }}</div><div class="lbl">Reports</div></div></div>
+  <div class="card stat {{ 'alert' if pending }}"><div class="ic">{{ ui.icon('list') }}</div><div><div class="num">{{ pending }}</div><div class="lbl">To review</div></div></div>
+  <div class="card stat {{ 'alert' if reports[0].abnormal_count }}"><div class="ic">{{ ui.icon('alert') }}</div><div><div class="num">{{ reports[0].abnormal_count }}</div><div class="lbl">Flagged in latest</div></div></div>
+  <div class="card stat"><div class="ic">{{ ui.icon('calendar') }}</div><div><div class="num" style="font-size:1.2rem">{{ reports[0].created_at|dt('%d %b') }}</div><div class="lbl">Last scan</div></div></div>
 </div>
 
 <div class="card mb">
-  <h2>🗂️ Reports</h2>
+  <h2>{{ ui.icon('file') }} Reports</h2>
   <div class="table-wrap"><table>
     <thead><tr><th>#</th><th>Date</th><th>Result</th><th>Review</th><th class="hide-sm">Notes</th><th></th></tr></thead>
     <tbody>{% for r in reports %}
@@ -46,21 +46,21 @@
 
 {% set n_ok = latest | selectattr('status', 'equalto', 'Normal') | list | length %}
 <div class="grid g3 mb">
-  <div class="card tint-sky"><h2>🎯 Latest scan score</h2>
+  <div class="card tint-sky"><h2>{{ ui.icon('target') }} Latest scan score</h2>
     {{ ui.gauge_svg(n_ok / (latest|length or 1), ((100 * n_ok / (latest|length or 1))|round|int) ~ '%', n_ok ~ ' of ' ~ latest|length ~ ' tests normal') }}</div>
-  <div class="card span2"><h2>🗓️ Results at a glance</h2>
+  <div class="card span2"><h2>{{ ui.icon('list') }} Results at a glance</h2>
     <p class="small muted" style="margin-top:0">One row per test, one dot per scan — newest on the right.</p>
     {{ ui.test_grid(grid) }}</div>
 </div>
 
 <div class="grid g2">
   <div class="card">
-    <div class="page-head" style="margin-bottom:8px"><h2 style="margin:0">📈 Trend</h2>
+    <div class="page-head" style="margin-bottom:8px"><h2 style="margin:0">{{ ui.icon('chart') }} Trend</h2>
       <select id="testSel" style="width:auto">{% for a in analytes %}<option>{{ a }}</option>{% endfor %}</select></div>
     <div class="chart-box"><canvas id="chart"></canvas></div>
   </div>
   <div class="card chat-box tint-penna">
-    <h2 style="margin-bottom:6px">💬 Ask AI about this patient</h2>
+    <h2 style="margin-bottom:6px">{{ ui.icon('message') }} Ask about this patient</h2>
     <div class="chat-log" id="chatLog"><div class="msg bot">Ask me about {{ patient.full_name.split()[0] }}'s results.</div></div>
     <div class="chips"><button type="button" data-q="Summarise this patient's trend">Summarise trend</button>
       <button type="button" data-q="Which tests are abnormal most often?">Most often abnormal?</button></div>
@@ -73,6 +73,6 @@
 {% if reports %}
 <script>const PID = {{ patient.user_id }}, CSRF = "{{ csrf_token }}";</script>
 <script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=6"></script>
 {% endif %}
 {% endblock %}

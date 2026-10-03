@@ -4,12 +4,12 @@
 {% block content %}
 <div class="page-head">
   <div><p class="eyebrow">Administrator</p><h1 class="curve-head">Clinicians</h1>
-    <p class="muted" style="margin:4px 0 0">Create logins for clinicians, reset passwords, disable accounts and assign patients.</p></div>
+    <p class="muted" style="margin:4px 0 0">Create logins for your clinicians, reset passwords and turn accounts on or off.</p></div>
 </div>
 
 <div class="grid g3">
   <div class="card span2">
-    <h2>🩺 All clinicians</h2>
+    <h2>{{ ui.icon('stethoscope') }} All clinicians</h2>
     {% if rows %}
     <div class="table-wrap visible"><table class="stack-sm">
       <thead><tr><th>Clinician</th><th>Patients</th><th class="hide-sm">Reviewed</th><th class="hide-sm">Last login</th><th>Status</th><th></th></tr></thead>
@@ -22,8 +22,7 @@
           <td class="hide-sm small">{{ c.last_login|dt('%d %b, %I:%M %p') if c.last_login else 'never' }}</td>
           <td>{% if c.is_active %}<span class="badge Reviewed">Active</span>{% else %}<span class="badge off">Disabled</span>{% endif %}</td>
           <td style="text-align:right;white-space:nowrap"><div class="row-actions">
-            <a class="btn secondary small" href="{{ url_for('admin_assign', cid=c.user_id) }}">Assign</a>
-            <span class="pop"><details><summary class="btn secondary small">•••</summary>
+            <span class="pop"><details><summary class="btn secondary small dots" aria-label="More actions">•••</summary>
               <div class="panel">
                 <form method="post" action="{{ url_for('admin_reset_password', cid=c.user_id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -41,13 +40,13 @@
       {% endfor %}</tbody>
     </table></div>
     {% else %}
-    <div class="empty"><div class="big-ic">🩺</div><h2>No clinicians yet</h2><p class="muted">Add the first one with the form.</p></div>
+    <div class="empty"><div class="big-ic">{{ ui.icon('stethoscope') }}</div><h2>No clinicians yet</h2><p class="muted">Add the first one with the form.</p></div>
     {% endif %}
   </div>
 
   <div class="card tint-hudson" id="add">
-    <h2>＋ Add a clinician</h2>
-    <p class="small muted" style="margin-top:0">You choose the password. Give the email and password to the clinician so they can log in.</p>
+    <h2>{{ ui.icon('plus') }} Add a clinician</h2>
+    <p class="small muted" style="margin-top:0">Choose a password and share the email and password with the clinician so they can log in.</p>
     <form method="post" autocomplete="off">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label for="full_name">Full name <span class="muted small" style="font-weight:500">· "Dr" is added automatically</span></label>

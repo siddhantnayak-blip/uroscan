@@ -61,9 +61,9 @@
       <p class="small muted">Want a new password? Use the reset link.</p>
       <a class="btn secondary block" href="{{ url_for('forgot') }}">Change password</a>
       {% elif user.role == 'clinician' %}
-      <p class="small muted">Your password is set by the administrator. Ask them if you need a new one.</p>
+      <p class="small muted">Your clinic's administrator manages your password. Ask them if you need a new one.</p>
       {% else %}
-      <p class="small muted">The admin password comes from the ADMIN_PASSWORD setting on the server.</p>
+      <p class="small muted">The administrator password is managed in your clinic's server settings.</p>
       {% endif %}
       <a class="btn secondary block" style="margin-top:8px" href="{{ url_for('logout') }}">Log out</a>
     </div>

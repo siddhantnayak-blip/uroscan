@@ -28,7 +28,7 @@
 <script>
 const pw = document.getElementById('password'), cf = document.getElementById('confirm'), m = document.getElementById('match');
 function check() { if (!cf.value) return; const s = pw.value === cf.value;
-  m.className = 'hint ' + (s ? 'ok' : 'bad'); m.textContent = s ? '✓ Passwords match' : '✗ Passwords don\'t match yet'; }
+  m.className = 'hint ' + (s ? 'ok' : 'bad'); m.textContent = s ? 'Passwords match' : 'Passwords don\'t match yet'; }
 pw.oninput = check; cf.oninput = check;
 </script>
 {% endblock %}

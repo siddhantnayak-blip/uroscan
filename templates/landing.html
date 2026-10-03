@@ -6,12 +6,12 @@
   <div>
     <p class="eyebrow">Smart urine strip reader</p>
     <h1>Read your urine test <b>from one photo.</b></h1>
-    <p class="lead">Snap a 10-pad test strip. uroscan matches every pad to its colour chart, turns colours into values, explains the result in plain English and keeps your history in one calm place.</p>
+    <p class="lead">Take a photo of a 10-pad urine test strip. uroscan reads every pad, turns the colours into values, explains the result in plain English and keeps your history ready for your clinician.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:24px">
       <a class="btn lg" href="{{ url_for('register') }}">Get started – it's free</a>
       <a class="btn secondary lg" href="{{ url_for('login') }}">Log in</a>
     </div>
-    <p class="small muted" style="margin-top:14px">🔒 Passwords are hashed · 🩺 Reports reviewed by clinicians</p>
+    <p class="small muted trust" style="margin-top:16px"><span>{{ ui.icon('shield') }} Your data stays private</span><span>{{ ui.icon('stethoscope') }} Reviewed by clinicians</span></p>
   </div>
   <div class="hero-art">
     <img class="arcs" src="{{ url_for('static', filename='img/arcs.svg') }}" alt="">
@@ -26,22 +26,22 @@
 
 <section style="margin:34px 0">
   <div class="grid g3">
-    <div class="card feature"><div class="ic">🎨</div><h3>Colour matching</h3>
-      <p class="muted small">Each pad is compared with every colour on the chart (K-nearest neighbours) and the closest match wins.</p></div>
-    <div class="card feature"><div class="ic">✨</div><h3>AI summary &amp; chat</h3>
-      <p class="muted small">A short, friendly explanation of every report, and a chat to ask questions about your results.</p></div>
-    <div class="card feature"><div class="ic">📈</div><h3>Reviewed by clinicians</h3>
-      <p class="muted small">Clinicians mark each report, set a retest date when needed and correct any misread pad.</p></div>
+    <div class="card feature"><div class="ic">{{ ui.icon('palette') }}</div><h3>Accurate colour matching</h3>
+      <p class="muted small">Each pad is compared with every colour on its reference chart, and the closest match gives the result.</p></div>
+    <div class="card feature"><div class="ic">{{ ui.icon('message') }}</div><h3>Results in plain language</h3>
+      <p class="muted small">Every report comes with a short explanation, and you can ask questions about your results at any time.</p></div>
+    <div class="card feature"><div class="ic">{{ ui.icon('stethoscope') }}</div><h3>Reviewed by clinicians</h3>
+      <p class="muted small">Your clinician reviews each report, adds notes and sets a retest date when one is needed.</p></div>
   </div>
 </section>
 
 <section class="card" style="margin-bottom:30px">
   <h2 class="curve-head">How it works</h2>
-  <div class="how">
-    <div><div class="n">1</div><b>Dip the strip</b><p class="small muted">Wait about a minute for the colours to develop.</p></div>
-    <div><div class="n">2</div><b>Take a photo</b><p class="small muted">Lay it on white paper and snap it with your phone.</p></div>
-    <div><div class="n">3</div><b>Get your report</b><p class="small muted">10 results with values, status and an AI summary.</p></div>
-    <div><div class="n">4</div><b>Clinician review</b><p class="small muted">Your clinician reviews it, adds notes and a retest date.</p></div>
-  </div>
+  <ol class="flow">
+    <li><span class="node">{{ ui.icon('droplet') }}</span><b>Dip the strip</b><p class="small muted">Wait about a minute for the colours to develop.</p></li>
+    <li><span class="node">{{ ui.icon('camera') }}</span><b>Take a photo</b><p class="small muted">Lay the strip on white paper and photograph it.</p></li>
+    <li><span class="node">{{ ui.icon('file') }}</span><b>Read your report</b><p class="small muted">Ten results with values, status and a short summary.</p></li>
+    <li><span class="node">{{ ui.icon('stethoscope') }}</span><b>Clinician review</b><p class="small muted">Your clinician adds notes and, if needed, a retest date.</p></li>
+  </ol>
 </section>
 {% endblock %}
