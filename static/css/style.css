@@ -564,3 +564,28 @@ footer.site { text-align: center; color: var(--muted); font-size: .8rem; padding
   table.pat-table td:nth-child(6) .row-actions { flex-direction: column; align-items: stretch; }
   table.pat-table tbody tr:hover td { background: none; }
 }
+
+/* strip photo: tap to open a zoomable viewer */
+.zoom-open { position: relative; display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: 16px; }
+.zoom-open .report-img { display: block; transition: filter .15s; }
+.zoom-open:hover .report-img { filter: brightness(.94); }
+.zoom-hint { position: absolute; right: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 99px;
+  background: rgba(20, 32, 27, .78); color: #fff; font-size: .78rem; font-weight: 600; pointer-events: none; }
+.zoom-hint .i { width: 14px; height: 14px; }
+.lightbox { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; background: #0d1412; color: #fff; }
+.lightbox[hidden] { display: none; }
+.lb-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; flex-wrap: wrap; }
+.lb-title { font-weight: 600; font-size: .92rem; opacity: .9; }
+.lb-tools { display: flex; align-items: center; gap: 6px; }
+.lb-tools button { min-width: 40px; height: 40px; border-radius: 99px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08);
+  color: #fff; font-family: inherit; font-weight: 600; font-size: 1.15rem; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0 12px; }
+.lb-tools button.wide { font-size: .85rem; }
+.lb-tools button:hover { background: rgba(255,255,255,.18); }
+.lb-tools .i { width: 18px; height: 18px; }
+#lbLevel { min-width: 52px; text-align: center; font-size: .85rem; font-variant-numeric: tabular-nums; opacity: .9; }
+.lb-stage { position: relative; flex: 1; overflow: hidden; display: grid; place-items: center; cursor: grab; touch-action: none; }
+.lb-stage.dragging { cursor: grabbing; }
+.lb-stage img { max-width: 92vw; max-height: calc(100vh - 140px); transform-origin: center center; user-select: none; border-radius: 6px; will-change: transform; }
+.lb-help { text-align: center; font-size: .78rem; opacity: .65; margin: 8px 0 14px; }
+@media (max-width: 760px) { .lb-title { display: none; } .lb-bar { justify-content: center; } }
+@media print { .lightbox { display: none !important; } }
