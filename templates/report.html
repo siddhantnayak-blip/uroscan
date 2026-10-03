@@ -52,7 +52,10 @@
   </div>
   <div class="card">
     <h2>{{ ui.icon('image') }} Strip photo</h2>
-    <img class="report-img" src="{{ url_for('report_photo', report_id=rep.report_id) }}" alt="Photo of the strip">
+    <button type="button" class="zoom-open" id="zoomOpen" aria-label="Open the strip photo larger">
+      <img class="report-img" src="{{ url_for('report_photo', report_id=rep.report_id) }}" alt="Photo of the strip">
+      <span class="zoom-hint no-print">{{ ui.icon('search', 'sm') }} Tap to zoom</span>
+    </button>
   </div>
 </div>
 
@@ -97,4 +100,67 @@
   UroScan is a <b>screening aid only</b> and not a medical diagnosis. Values are approximate, based on colour matching of a test strip photo.
   Please confirm any abnormal result with a laboratory test and a qualified clinician.
 </div>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Strip photo, zoomed" hidden>
+  <div class="lb-bar">
+    <span class="lb-title">Report #{{ rep.report_id }} · strip photo</span>
+    <div class="lb-tools">
+      <button type="button" data-z="-" aria-label="Zoom out">&minus;</button>
+      <span id="lbLevel">160%</span>
+      <button type="button" data-z="+" aria-label="Zoom in">+</button>
+      <button type="button" data-z="fit" class="wide">Fit</button>
+      <button type="button" data-z="close" aria-label="Close">{{ ui.icon('x') }}</button>
+    </div>
+  </div>
+  <div class="lb-stage" id="lbStage"><img id="lbImg" src="{{ url_for('report_photo', report_id=rep.report_id) }}" alt="Photo of the strip, zoomed" draggable="false"></div>
+  <p class="lb-help">Drag to move · scroll or pinch to zoom · double-click to zoom in · Esc to close</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// strip photo viewer: opens a little zoomed in; zoom with buttons / wheel / pinch, drag to pan
+(function () {
+  const box = document.getElementById('lightbox'), stage = document.getElementById('lbStage'),
+        img = document.getElementById('lbImg'), level = document.getElementById('lbLevel');
+  let z = 1.6, x = 0, y = 0, drag = null; const pts = new Map(); let pinch = null;
+  const MIN = 1, MAX = 5, START = 1.6;
+  function apply() {
+    const r = stage.getBoundingClientRect(), w = img.offsetWidth * z, h = img.offsetHeight * z;
+    const mx = Math.max(0, (w - r.width) / 2), my = Math.max(0, (h - r.height) / 2);
+    x = Math.min(mx, Math.max(-mx, x)); y = Math.min(my, Math.max(-my, y));
+    img.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
+    level.textContent = Math.round(z * 100) + '%';
+  }
+  function zoomTo(nz, cx, cy) {
+    nz = Math.min(MAX, Math.max(MIN, nz));
+    if (cx !== undefined) { const r = stage.getBoundingClientRect(), ox = cx - r.left - r.width / 2, oy = cy - r.top - r.height / 2;
+      x = ox - (ox - x) * nz / z; y = oy - (oy - y) * nz / z; }
+    z = nz; apply();
+  }
+  function open() { box.hidden = false; document.body.style.overflow = 'hidden'; z = START; x = y = 0;
+    if (img.complete) apply(); else img.onload = apply; }
+  function close() { box.hidden = true; document.body.style.overflow = ''; }
+  document.getElementById('zoomOpen').addEventListener('click', open);
+  box.querySelectorAll('[data-z]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.z;
+    if (k === '+') zoomTo(z * 1.25); else if (k === '-') zoomTo(z / 1.25);
+    else if (k === 'fit') { z = 1; x = y = 0; apply(); } else close();
+  }));
+  document.addEventListener('keydown', e => { if (box.hidden) return;
+    if (e.key === 'Escape') close(); if (e.key === '+' || e.key === '=') zoomTo(z * 1.25); if (e.key === '-') zoomTo(z / 1.25); });
+  stage.addEventListener('wheel', e => { e.preventDefault(); zoomTo(z * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX, e.clientY); }, { passive: false });
+  stage.addEventListener('dblclick', e => zoomTo(z < 2.5 ? z * 1.6 : START, e.clientX, e.clientY));
+  stage.addEventListener('click', e => { if (e.target === stage && z <= 1.01) close(); });
+  stage.addEventListener('pointerdown', e => { stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, e);
+    if (pts.size === 1) drag = { sx: e.clientX - x, sy: e.clientY - y };
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), z }; } });
+  stage.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, e);
+    if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()];
+      zoomTo(pinch.z * Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) / pinch.d, (a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2); }
+    else if (drag) { x = e.clientX - drag.sx; y = e.clientY - drag.sy; apply(); stage.classList.add('dragging'); } });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) { drag = null; stage.classList.remove('dragging'); }
+    else { const p = [...pts.values()][0]; drag = { sx: p.clientX - x, sy: p.clientY - y }; } };
+  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+  window.addEventListener('resize', () => { if (!box.hidden) apply(); });
+})();
+</script>
 {% endblock %}
