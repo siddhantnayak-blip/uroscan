@@ -2,7 +2,7 @@
 // The page defines PID (patient id) and CSRF before loading this file.
 
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const PASTEL = { Normal: '#a9cbb0', Trace: '#e9cf94', High: '#e3a6a1', Low: '#e3a6a1' };
+const STATUS = s => css(s === 'Normal' ? '--ok' : s === 'Trace' ? '--warn' : '--bad');
 
 // ---------- trend line for one test (pastel, with the normal range shaded) ----------
 const testSel = document.getElementById('testSel');
@@ -13,8 +13,7 @@ const normalBand = {
     const { ctx, chartArea: a, scales: { y } } = ch;
     const top = Math.max(y.getPixelForValue(opts.range[1] + 0.5), a.top);
     const bottom = Math.min(y.getPixelForValue(opts.range[0] - 0.5), a.bottom);
-    ctx.save(); ctx.fillStyle = 'rgba(169,203,176,0.22)';
-    ctx.beginPath(); ctx.roundRect(a.left, top, a.right - a.left, bottom - top, 10); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.fillStyle = 'rgba(22,163,74,0.12)'; ctx.fillRect(a.left, top, a.right - a.left, bottom - top); ctx.restore();
   }
 };
 let trend, trendChart;
@@ -23,19 +22,17 @@ async function drawTrend(fetchNew = true) {
   if (!testSel || !el) return;
   if (fetchNew || !trend) trend = await (await fetch(`/api/graph/${PID}?test=${encodeURIComponent(testSel.value)}`)).json();
   const d = trend, line = css('--line'), ink = css('--muted');
-  Chart.defaults.color = ink; Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+  Chart.defaults.color = ink; Chart.defaults.font.family = '"Plus Jakarta Sans", system-ui, sans-serif';
   if (trendChart) trendChart.destroy();
-  const g = el.getContext('2d').createLinearGradient(0, 0, 0, 260);
-  g.addColorStop(0, 'rgba(185,199,224,0.45)'); g.addColorStop(1, 'rgba(185,199,224,0)');
   trendChart = new Chart(el, {
     type: 'line', plugins: [normalBand],
     data: { labels: d.points.map(p => p.date), datasets: [{
-      data: d.points.map(p => p.y), borderColor: '#8f917c', borderWidth: 2.5, tension: 0.35, fill: true, backgroundColor: g,
-      pointRadius: 7, pointHoverRadius: 9, pointBackgroundColor: d.points.map(p => PASTEL[p.status] || '#b9c7e0'),
-      pointBorderColor: css('--card') || '#fff', pointBorderWidth: 2.5 }] },
+      data: d.points.map(p => p.y), borderColor: css('--med'), borderWidth: 3, tension: 0.3, fill: false,
+      pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: d.points.map(p => STATUS(p.status)),
+      pointBorderColor: css('--card') || '#fff', pointBorderWidth: 2 }] },
     options: { maintainAspectRatio: false, animation: { duration: 500 },
       plugins: { legend: { display: false }, normalBand: { range: d.normal },
-        tooltip: { backgroundColor: '#1f1f1f', padding: 10, cornerRadius: 10,
+        tooltip: { backgroundColor: '#1d2a25', padding: 10, cornerRadius: 6, displayColors: false,
           callbacks: { label: x => `${d.points[x.dataIndex].label} (${d.points[x.dataIndex].status})` } } },
       scales: {
         y: { min: -0.5, max: d.levels.length - 0.5, grid: { color: line },
