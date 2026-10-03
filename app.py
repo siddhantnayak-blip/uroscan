@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import logging
+import random
 from datetime import datetime, timedelta, date
 from functools import wraps
 
@@ -98,8 +99,8 @@ def load_user():
             init_db()
             DB_READY = True
         except Exception:
-            return render_template("error.html", title="Database not reachable",
-                                   message="UroScan can't reach its database right now. Please try again in a minute."), 503
+            return render_template("error.html", title="We'll be right back",
+                                   message="uroscan is starting up or under maintenance. Please try again in a minute."), 503
     g.user = None
     if session.get("uid") and request.endpoint != "static":
         g.user = query("SELECT user_id, full_name, email, role, is_active, dob, gender FROM users WHERE user_id=%s",
@@ -322,7 +323,7 @@ def register():
                       (name, email, generate_password_hash(password), dob, gender))
         session.clear()
         session["uid"] = uid
-        flash(f"Welcome to UroScan, {name.split()[0]}!", "ok")
+        flash(f"Welcome to uroscan, {name.split()[0]}.", "ok")
         return redirect(url_for("dashboard"))
     return render_template("register.html", form={})
 
@@ -347,7 +348,7 @@ def login():
             flash("Wrong email or password.", "error")
             return render_template("login.html", email=email)
         if not u["is_active"]:
-            flash("This account has been disabled. Please contact the administrator.", "error")
+            flash("This account has been switched off. Please contact your clinic.", "error")
             return render_template("login.html", email=email)
         session.clear()
         session["uid"] = u["user_id"]
@@ -374,8 +375,7 @@ def forgot():
             execute("INSERT INTO password_reset (token, user_id, expires_at) VALUES (%s,%s,%s)",
                     (token, u["user_id"], datetime.utcnow() + timedelta(minutes=30)))
             link = url_for("reset", token=token, _external=True)
-        flash("If that email belongs to a patient account, a reset link has been created (valid for 30 minutes). "
-              "Clinicians: please ask the administrator to reset your password.", "ok")
+        flash("If that email has a uroscan account, a reset link has been created. It works for 30 minutes.", "ok")
     return render_template("forgot.html", link=link)
 
 
@@ -674,7 +674,7 @@ def correct_reading(report_id):
     if changed:
         summary, _ = ai.summarise(report_results(report_id))
         execute("UPDATE test_report SET ai_summary=%s WHERE report_id=%s", (summary, report_id))
-        flash(f"{analyte} corrected to {label}. The status and AI summary were updated.", "ok")
+        flash(f"{analyte} corrected to {label}. The status and summary were updated.", "ok")
     else:
         flash("That reading was already at this level - nothing changed.", "warn")
     return redirect(url_for("report", report_id=report_id))
@@ -802,10 +802,71 @@ def admin_assign(cid):
 def admin_patients():
     rows = query("SELECT s.*, (SELECT GROUP_CONCAT(x.full_name ORDER BY x.full_name SEPARATOR ', ') "
                  "FROM patient_clinician pc JOIN users x ON x.user_id = pc.clinician_id WHERE pc.patient_id = s.patient_id) "
-                 "AS clinicians FROM v_patient_summary s ORDER BY s.full_name")
+                 "AS clinicians, (SELECT GROUP_CONCAT(pc.clinician_id) FROM patient_clinician pc "
+                 "WHERE pc.patient_id = s.patient_id) AS clinician_ids FROM v_patient_summary s ORDER BY s.full_name")
     for r in rows:
         r["age"] = age_of(r["dob"])
-    return render_template("admin_patients.html", rows=rows)
+        r["cids"] = {int(x) for x in (r["clinician_ids"] or "").split(",") if x}
+    doctors = query("SELECT user_id, full_name FROM users WHERE role='clinician' AND is_active=1 ORDER BY full_name")
+    unassigned = sum(1 for r in rows if not r["cids"])
+    return render_template("admin_patients.html", rows=rows, doctors=doctors, unassigned=unassigned)
+
+
+@app.route("/admin/patients/<int:pid>/assign", methods=["POST"])
+@login_required("admin")
+def admin_assign_patient(pid):
+    """Choose which clinicians look after one patient (or let the system pick one at random)."""
+    p = query("SELECT user_id, full_name FROM users WHERE user_id=%s AND role='patient'", (pid,), one=True)
+    if not p:
+        abort(404)
+    active = {r["user_id"] for r in query("SELECT user_id FROM users WHERE role='clinician' AND is_active=1")}
+    current = {r["clinician_id"] for r in query("SELECT clinician_id FROM patient_clinician WHERE patient_id=%s", (pid,))}
+    if request.form.get("random"):
+        choices = sorted(active - current)
+        if not choices:
+            flash(f"Every active clinician already looks after {p['full_name']}.", "warn")
+            return redirect(url_for("admin_patients"))
+        wanted = current | {random.choice(choices)}
+    else:
+        wanted = {int(x) for x in request.form.getlist("clinicians") if x.isdigit()} & active
+        wanted |= current - active                      # keep links to disabled clinicians untouched
+    as_actor()
+    for cid in wanted - current:
+        execute("INSERT INTO patient_clinician (patient_id, clinician_id) VALUES (%s,%s)", (pid, cid), commit=False)
+    for cid in current - wanted:
+        execute("DELETE FROM patient_clinician WHERE patient_id=%s AND clinician_id=%s", (pid, cid), commit=False)
+    get_db().commit()
+    names = [r["full_name"] for r in query("SELECT u.full_name FROM patient_clinician pc JOIN users u ON u.user_id = pc.clinician_id "
+                                           "WHERE pc.patient_id=%s ORDER BY u.full_name", (pid,))]
+    flash(f"{p['full_name']} is now looked after by {', '.join(names)}." if names
+          else f"{p['full_name']} has no clinician now.", "ok")
+    return redirect(url_for("admin_patients"))
+
+
+@app.route("/admin/patients/assign-random", methods=["POST"])
+@login_required("admin")
+def admin_assign_random():
+    """Give every patient without a clinician one active clinician, picked at random
+    (always from the clinicians with the fewest patients, so the work stays balanced)."""
+    doctors = query("SELECT u.user_id, (SELECT COUNT(*) FROM patient_clinician pc WHERE pc.clinician_id = u.user_id) AS n "
+                    "FROM users u WHERE u.role='clinician' AND u.is_active=1")
+    if not doctors:
+        flash("Add a clinician first, then patients can be assigned.", "warn")
+        return redirect(url_for("admin_patients"))
+    waiting = query("SELECT u.user_id FROM users u WHERE u.role='patient' AND NOT EXISTS "
+                    "(SELECT 1 FROM patient_clinician pc WHERE pc.patient_id = u.user_id)")
+    load = {d["user_id"]: d["n"] for d in doctors}
+    as_actor()
+    for row in waiting:
+        least = min(load.values())
+        cid = random.choice([c for c, n in load.items() if n == least])
+        execute("INSERT INTO patient_clinician (patient_id, clinician_id) VALUES (%s,%s)", (row["user_id"], cid), commit=False)
+        load[cid] += 1
+    get_db().commit()
+    n = len(waiting)
+    flash(f"{n} patient{'s' if n != 1 else ''} assigned to a clinician at random." if n
+          else "Every patient already has a clinician.", "ok")
+    return redirect(url_for("admin_patients"))
 
 
 # ---------------------------------------------------------------- errors and small helpers
